@@ -798,6 +798,7 @@ body.flat_page.game.chromeless {
 	margin-left: 2px;
 	width: 299px;
 	margin-bottom: 14px;
+	overflow:hidden;
 }
 #col_right .lanes.desert {
 	background: url('../media/panel_right_desert.png');
@@ -957,6 +958,7 @@ body.flat_page.game.chromeless {
 	text-shadow: 1px 1px 0px rgba( 0, 0, 0, 0.6 );
 	font-size: 8px;
 	height: 64px;
+	float:left;
 	vertical-align: top;
 	margin-top: -1px;
 	}
@@ -1041,6 +1043,7 @@ body.flat_page.game.chromeless {
 	display: inline-block;
 	width: 130px;
 	vertical-align: top;
+	float:right;
 }
 
 .teamhealthcontainer > div {
@@ -1064,10 +1067,6 @@ body.flat_page.game.chromeless {
 	font-size: 8px;
 }
 
-
-
-
-
 .teamhealth {
 	width: 9px;
 	margin: 0 1px;
@@ -1075,6 +1074,7 @@ body.flat_page.game.chromeless {
 	height: 20px;
 	position: relative;
 	background: rgba( 0, 0, 0, 0.2 );
+	float:left;
 }
 
 .teamhealth > div {

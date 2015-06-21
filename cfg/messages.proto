@@ -216,10 +216,39 @@ message CTowerAttack_PlayerTechTree
 	optional double dps = 18;
 }
 
+message CTowerAttack_Request {
+	required uint32 id = 1;
+	required uint32 type = 2;
+	optional CTowerAttack_GetGameData_Request GetGameData_Request = 3;
+	optional CTowerAttack_GetPlayerNames_Request GetPlayerNames_Request = 4;
+	optional CTowerAttack_GetPlayerData_Request GetPlayerData_Request = 5;
+	optional CTowerAttack_UseAbilities_Request UseAbilities_Request = 6;
+	optional CTowerAttack_ChooseUpgrade_Request ChooseUpgrade_Request = 7;
+	optional CTowerAttack_GetTuningData_Request GetTuningData_Request = 8;
+	optional CTowerAttack_GetDailyStatsRollup_Request GetDailyStatsRollup_Request = 9;
+	optional CTowerAttack_HandleGameEvent_Request HandleGameEvent_Request = 10;
+	optional CTowerAttack_UseBadgePoints_Request UseBadgePoints_Request = 11;
+}
+
+message CTowerAttach_Response {
+	required uint32 id = 1;
+	required uint32 type = 2;
+	optional CTowerAttack_GetGameData_Response GetGameData_Response = 3;
+	optional CTowerAttack_GetPlayerNames_Response GetPlayerNames_Response = 4;
+	optional CTowerAttack_GetPlayerData_Response GetPlayerData_Response = 5;
+	optional CTowerAttack_UseAbilities_Response UseAbilities_Response = 6;
+	optional CTowerAttack_ChooseUpgrade_Response ChooseUpgrade_Response = 7;
+	optional CTowerAttack_GetTuningData_Response GetTuningData_Response = 8;
+	optional CTowerAttack_GetDailyStatsRollup_Response GetDailyStatsRollup_Response = 9;
+	optional CTowerAttack_HandleGameEvent_Response HandleGameEvent_Response = 10;
+	optional CTowerAttack_UseBadgePoints_Response UseBadgePoints_Response = 11;
+}
+
 message CTowerAttack_GetGameData_Request
 {
 	optional uint64 gameid = 1;
 	optional bool include_stats = 2;
+	optional string format = 3;
 }
 message CTowerAttack_GetGameData_Response
 {
@@ -247,6 +276,7 @@ message CTowerAttack_GetPlayerData_Request
 	optional uint64 gameid = 1;
 	optional bool include_tech_tree = 2 [default = false];
 	optional uint64 steamid = 3;
+	optional string format = 4;
 }
 message CTowerAttack_GetPlayerData_Response
 {
@@ -286,6 +316,8 @@ message CTowerAttack_ChooseUpgrade_Response
 
 message CTowerAttack_GetTuningData_Request
 {
+	optional uint32 game_type = 1;
+	optional uint64 gameid = 2;
 }
 message CTowerAttack_GetTuningData_Response
 {

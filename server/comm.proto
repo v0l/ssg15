@@ -1,0 +1,3 @@
+enum Query {
+	required uint32 Type = 1;
+}

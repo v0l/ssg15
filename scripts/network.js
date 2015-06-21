@@ -13,143 +13,139 @@ window.CServerInterface = function( builder )
 	this.m_nLastTick = false
 	this.m_bRequestUpdates = false;
 	this.m_protobufMessageBuilder = builder;
+	
+	this.m_protobuf_Request = builder.build( "CTowerAttack_Request" );
+	this.m_protobuf_GetTuningData_Request = builder.build( "CTowerAttack_GetTuningData_Request" );
+	this.m_protobuf_GetGameData_Request = builder.build( "CTowerAttack_GetGameData_Request" );
+	this.m_protobuf_GetPlayerData_Request = builder.build( "CTowerAttack_GetPlayerData_Request" );
+	
 	this.m_protobuf_GetGameDataResponse = builder.build( "CTowerAttack_GetGameData_Response" );
 	this.m_protobuf_GetPlayerNamesResponse = builder.build( "CTowerAttack_GetPlayerNames_Response" );
 	this.m_protobuf_GetPlayerDataResponse = builder.build( "CTowerAttack_GetPlayerData_Response" );
 	this.m_protobuf_UseAbilitiesResponse = builder.build( "CTowerAttack_UseAbilities_Response" );
 	this.m_protobuf_ChooseUpgradeResponse = builder.build( "CTowerAttack_ChooseUpgrade_Response" );
 	this.m_protobuf_UseBadgePointsResponse = builder.build( "CTowerAttack_UseBadgePoints_Response" );
-
+	
 	var instance = this;
+	this.m_ws = false;
+	this.m_ws_ps = 0; 
+	this.m_ws_cbq = [];
+}
 
-	this.m_WebAPI = false;//new CWebAPI( rgResult.webapi_host, rgResult.webapi_host_secure, rgResult.token );
-
-
+CServerInterface.prototype.OnData = function(evt){
+	console.log(evt);
 }
 
 CServerInterface.prototype.Connect = function( callback )
 {
 	var instance = this;
 
-	/* SKIP THIS
-	$J.ajax({
-		url: 'http://steamcommunity.com/minigame/gettoken',
-		dataType: "json"
-	}).success(function(rgResult){
-		if( rgResult.success == 1)
-		{
-			instance.m_strSteamID = rgResult.steamid;
-			instance.m_strWebAPIHost = rgResult.webapi_host;
-			instance.m_WebAPI = new CWebAPI( rgResult.webapi_host, rgResult.webapi_host_secure, rgResult.token );
-			callback(rgResult);
-		}
-	});*/
-	var rgResult = {"webapi_host":"http:\/\/lostlhost:8000\/","webapi_host_secure":"https:\/\/steamapi-a.akamaihd.net\/","token":"a61abec39c440daa466556a752937cbb","steamid":"76561198009678931","persona_name":"KIERAN","success":1};
+	var rgResult = {
+		"webapi_host":"ws:\/\/localhost:8080\/",
+		"webapi_host_secure":"wss:\/\/localhost:8081\/",
+		"token":"1234",
+		"steamid":"aaaa",
+		"persona_name":"testuser",
+		"success":1
+	};
+	
 	instance.m_strSteamID = rgResult.steamid;
 	instance.m_strWebAPIHost = rgResult.webapi_host;
-	instance.m_WebAPI = new CWebAPI( rgResult.webapi_host, rgResult.webapi_host_secure, rgResult.token );
+	instance.m_ws = new WebSocket( rgResult.webapi_host );
+	instance.m_ws.onmessage += instance.OnData;
+	instance.m_ws.binaryType = "arraybuffer";
 	callback(rgResult);
 }
 
+CServerInterface.prototype.BuildURL = function() { }
+
+CServerInterface.prototype.Write = function( obj, callback )
+{
+	var instance = this;
+	
+	if(instance.m_ws != null && instance.m_ws.readyState == WebSocket.OPEN){
+		instance.m_ws_cbq[instance.m_ws_cbq.length] = callback;
+		
+		instance.m_ws.send(obj.encode().toArrayBuffer())
+		instance.m_ws_ps++;
+	}
+}
 
 CServerInterface.prototype.GetGameTuningData = function( callback )
 {
-	var rgParams = {
-		game_type: 1,
-		gameid: this.m_nGameID
-	};
-
 	var instance = this;
-
-	this.m_WebAPI.ExecJSONP( 'ITowerAttackMiniGameService', 'GetTuningData',  rgParams, true, null, 15 )
-		.done( callback )
-		.fail( function(err)
-		{
-			console.log("FAILED");
-			console.log(err);
-			g_bHalt = true;
-		});
-
+	
+	var rgParams = {
+		id: instance.m_ws_ps,
+		type: 5,
+		GetTuningData_Request: {
+			game_type: 1,
+			gameid: this.m_nGameId
+		}
+	};
+	
+	instance.Write(instance.m_protobuf_Request(rgParams), callback);
 }
 
 CServerInterface.prototype.GetGameData = function( callback, error, bIncludeStats )
 {
+	var instance = this;
+	
 	var rgParams = {
-		gameid: this.m_nGameID,
-		include_stats: ( bIncludeStats || g_IncludeGameStats ) ? 1 : 0,
-		format: 'protobuf_raw'
+		id: instance.m_ws_ps,
+		type: 0,
+		GetGameData_Request: {
+			gameid: this.m_nGameID,
+			include_stats: ( bIncludeStats || g_IncludeGameStats ) ? true : false
+		}
 	};
 
-	var instance = this;
-
-	$J.ajax({
-		url: this.m_WebAPI.BuildURL( 'ITowerAttackMiniGameService', 'GetGameData', false ),
-		data: rgParams,
-		xhrFields : {
-			responseType : 'arraybuffer'
-		},
-		dataType : 'native'
-	}).success(function(rgResult){
+	instance.Write(new instance.m_protobuf_Request(rgParams), function(rgResult){
 		var message = instance.m_protobuf_GetGameDataResponse.decode(rgResult);
 		var result = { 'response': message.toRaw( true, true ) };
 		callback( result );
-	} )
-	.fail( error );
+	});
 }
 
 CServerInterface.prototype.GetPlayerNames = function( callback, error, rgAccountIDs )
 {
-	var rgParams = {
-		gameid: this.m_nGameID,
-		accountids: rgAccountIDs && rgAccountIDs.length < 100 ? rgAccountIDs : null,
-	};
-
 	var instance = this;
-
-	var rgRequest = {
-		'input_json': V_ToJSON( rgParams ),
-		'format': "protobuf_raw",
+	
+	var rgParams = {
+		id: instance.m_ws_ps,
+		type: 1,
+		GetPlayerNames_Request: {
+			gameid: this.m_nGameID,
+			accountids: rgAccountIDs && rgAccountIDs.length < 100 ? rgAccountIDs : null
+		}
 	};
 
-	$J.ajax({
-		url: this.m_WebAPI.BuildURL( 'ITowerAttackMiniGameService', 'GetPlayerNames', false ),
-		data: rgRequest,
-		xhrFields : {
-			responseType : 'arraybuffer'
-		},
-		dataType : 'native'
-	}).success(function(rgResult){
+	instance.Write(new instance.m_protobuf_Request(rgParams), function(rgResult){
 		var message = instance.m_protobuf_GetPlayerNamesResponse.decode(rgResult);
 		var result = { 'response': message.toRaw( true, true ) };
 		callback( result );
-	} )
-	.fail( error );
+	});
 }
 
 CServerInterface.prototype.GetPlayerData = function( callback, error, bIncludeTechTree )
 {
+	var instance = this;
+	
 	var rgParams = {
-		gameid: this.m_nGameID,
-		steamid: g_steamID,
-		include_tech_tree: (bIncludeTechTree) ? 1 : 0,
-		format: 'protobuf_raw'
+		id: instance.m_ws_ps,
+		type: 2,
+		GetPlayerData_Request: {
+			gameid: this.m_nGameID,
+			steamid: g_steamID,
+			include_tech_tree: (bIncludeTechTree) ? true : false,
+		}
 	};
 
-	var instance = this;
-
-	$J.ajax({
-		url: this.m_WebAPI.BuildURL( 'ITowerAttackMiniGameService', 'GetPlayerData', false ),
-		data: rgParams,
-		xhrFields : {
-			responseType : 'arraybuffer'
-		},
-		dataType : 'native'
-	}).success(function(rgResult){
+	instance.Write(new instance.m_protobuf_Request(rgParams), function(rgResult){
 		var message = instance.m_protobuf_GetPlayerDataResponse.decode(rgResult);
 		var result = { 'response': message.toRaw( true, true ) };
 		callback( result );
-	} )
-	.fail( error );
+	});
 }
 
 CServerInterface.prototype.UseAbilities = function( callback, failed, rgParams )

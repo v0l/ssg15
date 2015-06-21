@@ -296,7 +296,7 @@ CScenePreload.prototype.ParseProtobufFile = function()
 {
 	// Synchronously request this for now
 	var ProtoBuf = dcodeIO.ProtoBuf;
-	return ProtoBuf.loadProtoFile( 'http://cdn.akamai.steamstatic.com/steamcommunity/public/assets/minigame/towerattack/messages.proto?v='+g_CacheKey );
+	return ProtoBuf.loadProtoFile( 'cfg/messages.proto?v='+g_CacheKey );
 }
 
 window.g_cPendingRequests = 0;
@@ -426,7 +426,7 @@ CScenePreload.prototype.Enter = function()
 
 	LoadLater(function(){
 		$J.ajax({
-			url: 'http://cdn.akamai.steamstatic.com/steamcommunity/public/assets/minigame/towerattack/emitters/combined.json?v='+g_CacheKey,
+			url: 'cfg/combined.json',
 			dataType: "json"
 		}).done(
 				function(rgResult){
