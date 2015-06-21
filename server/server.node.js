@@ -6,6 +6,7 @@ var redis = new RDS();
 var ByteBuffer = require("bytebuffer");
 var protobuf = require('protocol-buffers')
 var comm = protobuf(fs.readFileSync('../cfg/messages.proto'))
+var Room = require('./room.js')
 
 var server = http.createServer(function(request, response) {
     console.log((new Date()) + ' Received request for ' + request.url);
@@ -100,6 +101,11 @@ wsServer.on('request', function(request) {
 				}
 				case 8:{
 					//use badge points
+					
+					break;
+				}
+				case 9:{
+					//quit game
 					
 					break;
 				}

@@ -15,9 +15,6 @@ window.CServerInterface = function( builder )
 	this.m_protobufMessageBuilder = builder;
 	
 	this.m_protobuf_Request = builder.build( "CTowerAttack_Request" );
-	this.m_protobuf_GetTuningData_Request = builder.build( "CTowerAttack_GetTuningData_Request" );
-	this.m_protobuf_GetGameData_Request = builder.build( "CTowerAttack_GetGameData_Request" );
-	this.m_protobuf_GetPlayerData_Request = builder.build( "CTowerAttack_GetPlayerData_Request" );
 	
 	this.m_protobuf_GetGameDataResponse = builder.build( "CTowerAttack_GetGameData_Response" );
 	this.m_protobuf_GetPlayerNamesResponse = builder.build( "CTowerAttack_GetPlayerNames_Response" );
@@ -150,25 +147,17 @@ CServerInterface.prototype.GetPlayerData = function( callback, error, bIncludeTe
 
 CServerInterface.prototype.UseAbilities = function( callback, failed, rgParams )
 {
+	var instance = this;
+	
 	rgParams["gameid"] = this.m_nGameID;
 
-	var instance = this;
-
 	var rgRequest = {
-		'input_json': V_ToJSON( rgParams ),
-		'access_token': instance.m_WebAPI.m_strOAuth2Token,
-		'format': "protobuf_raw",
+		id: instance.m_ws_ps,
+		type: 3,
+		UseAbilities_Request: rgParams
 	};
 
-	$J.ajax({
-		url: this.m_WebAPI.BuildURL( 'ITowerAttackMiniGameService', 'UseAbilities', true ),
-		method: 'POST',
-		data: rgRequest,
-		xhrFields : {
-			responseType : 'arraybuffer'
-		},
-		dataType : 'native'
-	}).success(function(rgResult){
+	instance.Write(new instance.m_protobuf_Request(rgRequest), function(rgResult){
 		var message = instance.m_protobuf_UseAbilitiesResponse.decode(rgResult);
 		var result = { 'response': message.toRaw( true, true ) };
 		if ( result.response.player_data )
@@ -180,34 +169,23 @@ CServerInterface.prototype.UseAbilities = function( callback, failed, rgParams )
 			result.response.tech_tree.unlocked_abilities_bitfield = result.response.tech_tree.unlocked_abilities_bitfield ? parseInt( result.response.tech_tree.unlocked_abilities_bitfield ) : 0;
 		}
 		callback( result );
-	} )
-	.fail( failed );
+	});
 }
 
 CServerInterface.prototype.ChooseUpgrades = function( callback, upgrades )
 {
-	var rgParams = {
-		'gameid': this.m_nGameID,
-		'upgrades': upgrades
-	};
-
 	var instance = this;
 
 	var rgRequest = {
-		'input_json': V_ToJSON( rgParams ),
-		'access_token': instance.m_WebAPI.m_strOAuth2Token,
-		'format': "protobuf_raw"
+		id: instance.m_ws_ps,
+		type: 4,
+		ChooseUpgrade_Request: {
+			gameid: this.m_nGameID,
+			upgrades: upgrades
+		}
 	};
-
-	$J.ajax({
-		url: this.m_WebAPI.BuildURL( 'ITowerAttackMiniGameService', 'ChooseUpgrade', true ),
-		method: 'POST',
-		data: rgRequest,
-		xhrFields : {
-			responseType : 'arraybuffer'
-		},
-		dataType : 'native'
-	}).success(function(rgResult){
+	
+	instance.Write(new instance.m_protobuf_Request(rgRequest), function(rgResult){
 		var message = instance.m_protobuf_ChooseUpgradeResponse.decode(rgResult);
 		var result = { 'response': message.toRaw( true, true ) };
 		if ( result.response.tech_tree )
@@ -215,38 +193,23 @@ CServerInterface.prototype.ChooseUpgrades = function( callback, upgrades )
 			result.response.tech_tree.unlocked_abilities_bitfield = result.response.tech_tree.unlocked_abilities_bitfield ? parseInt( result.response.tech_tree.unlocked_abilities_bitfield ) : 0;
 		}
 		callback( result );
-	} )
-	.fail( function(err)
-	{
-		console.log("FAILED");
-		console.log(err);
 	});
 }
 
 CServerInterface.prototype.UseBadgePoints = function( callback, abilityItems )
 {
-	var rgParams = {
-		'gameid': this.m_nGameID,
-		'ability_items': abilityItems
-	};
-
 	var instance = this;
 
 	var rgRequest = {
-		'input_json': V_ToJSON( rgParams ),
-		'access_token': instance.m_WebAPI.m_strOAuth2Token,
-		'format': "protobuf_raw"
+		id: instance.m_ws_ps,
+		type: 8,
+		UseBadgePoints_Request: {
+			gameid: this.m_nGameID,
+			ability_items: abilityItems
+		}
 	};
-
-	$J.ajax({
-		url: this.m_WebAPI.BuildURL( 'ITowerAttackMiniGameService', 'UseBadgePoints', true ),
-		method: 'POST',
-		data: rgRequest,
-		xhrFields : {
-			responseType : 'arraybuffer'
-		},
-		dataType : 'native'
-	}).success(function(rgResult){
+	
+	instance.Write(new instance.m_protobuf_Request(rgRequest), function(rgResult){
 		var message = instance.m_protobuf_UseBadgePointsResponse.decode(rgResult);
 		var result = { 'response': message.toRaw( true, true ) };
 		if ( result.response.tech_tree )
@@ -254,33 +217,19 @@ CServerInterface.prototype.UseBadgePoints = function( callback, abilityItems )
 			result.response.tech_tree.unlocked_abilities_bitfield = result.response.tech_tree.unlocked_abilities_bitfield ? parseInt( result.response.tech_tree.unlocked_abilities_bitfield ) : 0;
 		}
 		callback( result );
-	} )
-	.fail( function(err)
-	{
-		console.log("FAILED");
-		console.log(err);
 	});
 }
 
 CServerInterface.prototype.QuitGame = function( callback )
 {
-	var rgParams = {
-		'gameid': this.m_nGameID,
-	};
-
-
 	var instance = this;
 
 	var rgRequest = {
-		'input_json': V_ToJSON( rgParams )
+		id: instance.m_ws_ps,
+		type: 9
 	};
-
-	this.m_WebAPI.ExecJSONP( 'IMiniGameService', 'LeaveGame',  rgRequest, true, null )
-		.done( callback )
-		.fail( function(err)
-		{
-			console.log("FAILED");
-			console.log(err);
-		});
-
+	
+	instance.Write(new instance.m_protobuf_Request(rgRequest), function(rgResult){
+		callback();
+	});
 }
