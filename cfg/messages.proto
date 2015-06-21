@@ -230,7 +230,7 @@ message CTowerAttack_Request {
 	optional CTowerAttack_UseBadgePoints_Request UseBadgePoints_Request = 11;
 }
 
-message CTowerAttach_Response {
+message CTowerAttack_Response {
 	required uint32 id = 1;
 	required uint32 type = 2;
 	optional CTowerAttack_GetGameData_Response GetGameData_Response = 3;
@@ -275,8 +275,6 @@ message CTowerAttack_GetPlayerData_Request
 {
 	optional uint64 gameid = 1;
 	optional bool include_tech_tree = 2 [default = false];
-	optional uint64 steamid = 3;
-	optional string format = 4;
 }
 message CTowerAttack_GetPlayerData_Response
 {

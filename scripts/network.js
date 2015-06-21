@@ -29,10 +29,6 @@ window.CServerInterface = function( builder )
 	this.m_ws_cbq = [];
 }
 
-CServerInterface.prototype.OnData = function(evt){
-	console.log(evt);
-}
-
 CServerInterface.prototype.Connect = function( callback )
 {
 	var instance = this;
@@ -49,7 +45,9 @@ CServerInterface.prototype.Connect = function( callback )
 	instance.m_strSteamID = rgResult.steamid;
 	instance.m_strWebAPIHost = rgResult.webapi_host;
 	instance.m_ws = new WebSocket( rgResult.webapi_host );
-	instance.m_ws.onmessage += instance.OnData;
+	instance.m_ws.onmessage += function(evt){
+		console.log(evt);
+	};
 	instance.m_ws.binaryType = "arraybuffer";
 	callback(rgResult);
 }
@@ -133,7 +131,6 @@ CServerInterface.prototype.GetPlayerData = function( callback, error, bIncludeTe
 		type: 2,
 		GetPlayerData_Request: {
 			gameid: this.m_nGameID,
-			steamid: g_steamID,
 			include_tech_tree: (bIncludeTechTree) ? true : false,
 		}
 	};

@@ -6,6 +6,7 @@ var redis = new RDS();
 var ByteBuffer = require("bytebuffer");
 var protobuf = require('protocol-buffers')
 var comm = protobuf(fs.readFileSync('../cfg/messages.proto'))
+var UUID = require("uuid")
 var Room = require('./room.js')
 
 var server = http.createServer(function(request, response) {
@@ -37,6 +38,7 @@ wsServer.on('request', function(request) {
     var connection = request.accept();
     connection.session = { 
 			name: "Unknown",
+			id: UUID.v4(),
 			data: {
 				hp: undefined,
 				current_lane: undefined,
@@ -67,12 +69,32 @@ wsServer.on('request', function(request) {
 				}
 				case 1:{
 					//get player names
+					var rsp_d = {
+						id: msg.id,
+						type: msg.type,
+						GetPlayerNames_Response: 
+							[
+								{ id: 1234, name: "Kieran" }
+							]
+						
+					};
 					
+					var rsp = comm.CTowerAttack_Response.encode(rsp_d);
+					connection.sendBytes(rsp.toArrayBuffer());
 					break;
 				}
 				case 2:{
 					//get player data
-					
+					var rsp_d = {
+						id: msg.id,
+						type: msg.type,
+						GetPlayerData_Response:{
+							player_data: connection.session.data,
+							tech_tree: msg.GetPlayerData_Request.include_tech_tree ? connection.session.tech_tree : undefined
+						}
+					};
+					var rsp = comm.CTowerAttack_Response.encode(rsp_d);
+					connection.sendBytes(rsp);
 					break;
 				}
 				case 3:{
