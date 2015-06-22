@@ -15,6 +15,7 @@ window.CServerInterface = function( builder )
 	this.m_protobufMessageBuilder = builder;
 	
 	this.m_protobuf_Request = builder.build( "CTowerAttack_Request" );
+	this.m_protobuf_Responce = builder.build( "CTowerAttack_Response" );
 	
 	this.m_protobuf_GetGameDataResponse = builder.build( "CTowerAttack_GetGameData_Response" );
 	this.m_protobuf_GetPlayerNamesResponse = builder.build( "CTowerAttack_GetPlayerNames_Response" );
@@ -48,8 +49,13 @@ CServerInterface.prototype.Connect = function( callback )
 	instance.m_ws.onmessage = function(evt){
 		// Dunno how to decode or how to pass this off to where it needs to go
 		var data = evt.data;
+		var msg = instance.m_protobuf_Responce.decode(data);
 		console.log("Websocket Data:");
-		console.dir(data);
+		console.dir(msg);
+		if (playerDataTest && msg.GetPlayerData_Response)
+			playerDataTest({response: msg.GetPlayerData_Response});
+		else if (gameDataTest && msg.GetGameData_Response)
+			gameDataTest({response: msg.GetGameData_Response});
 	};
 
 	// Wait for the connection to be ready
@@ -89,6 +95,7 @@ CServerInterface.prototype.GetGameTuningData = function( callback )
 	instance.Write(instance.m_protobuf_Request(rgParams), callback);
 }
 
+var gameDataTest = null;
 CServerInterface.prototype.GetGameData = function( callback, error, bIncludeStats )
 {
 	var instance = this;
@@ -107,6 +114,8 @@ CServerInterface.prototype.GetGameData = function( callback, error, bIncludeStat
 		var result = { 'response': message.toRaw( true, true ) };
 		callback( result );
 	});
+
+	gameDataTest = callback;
 }
 
 CServerInterface.prototype.GetPlayerNames = function( callback, error, rgAccountIDs )
@@ -129,6 +138,7 @@ CServerInterface.prototype.GetPlayerNames = function( callback, error, rgAccount
 	});
 }
 
+var playerDataTest = null;
 CServerInterface.prototype.GetPlayerData = function( callback, error, bIncludeTechTree )
 {
 	var instance = this;
@@ -147,6 +157,7 @@ CServerInterface.prototype.GetPlayerData = function( callback, error, bIncludeTe
 		var result = { 'response': message.toRaw( true, true ) };
 		callback( result );
 	});
+	playerDataTest = callback;
 }
 
 CServerInterface.prototype.UseAbilities = function( callback, failed, rgParams )
