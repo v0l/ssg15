@@ -1,18 +1,26 @@
+var Config = require('./server.config.js');
 var WebSocketServer = require('websocket').server;
 var fs = require('fs');
 var http = require('http');
 var RDS = require('ioredis');
 var redis = new RDS();
 var ByteBuffer = require("bytebuffer");
-var protobuf = require('protocol-buffers')
-var comm = protobuf(fs.readFileSync('../cfg/messages.proto'))
-var UUID = require("uuid")
-var Room = require('./room.js')
+var protobuf = require('protocol-buffers');
+var comm = protobuf(fs.readFileSync(Config.TowerAttackDir+'/cfg/messages.proto'));
+var UUID = require("uuid");
+var NodeStatic = require("node-static");
+var Room = require('./room.js');
+
+// Have a local file server and other things when testing
+var fileServer = null;
+if (Config.Enviroment == "dev") {
+	fileServer = new NodeStatic.Server(Config.PublicDir);
+}
 
 var server = http.createServer(function(request, response) {
-    console.log((new Date()) + ' Received request for ' + request.url);
-    response.writeHead(404);
-    response.end();
+	if (Config.Enviroment == "dev") {
+    	fileServer.serve(request, response);
+    }
 });
 server.listen(8080, function() {
     console.log((new Date()) + ' Server is listening on port 8080');

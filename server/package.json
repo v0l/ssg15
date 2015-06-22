@@ -10,7 +10,8 @@
     "uuid": "~2.0.1",
     "websocket": "~1.0.19",
     "ioredis": "~1.5.1",
-    "long": "~2.2.5"
+    "long": "~2.2.5",
+    "node-static": "~0.7.6"
   },
   "devDependencies": {},
   "scripts": {
