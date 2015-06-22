@@ -45,7 +45,7 @@ CServerInterface.prototype.Connect = function( callback )
 	
 	instance.m_strSteamID = rgResult.steamid;
 	instance.m_strWebAPIHost = rgResult.webapi_host;
-	instance.m_ws = new WebSocket( instance.m_strWebAPIHost );
+	instance.m_ws = new WebSocket( "ws:\/\/"+location.host );
 	instance.m_ws.onmessage = function(evt){
 		// Dunno how to decode or how to pass this off to where it needs to go
 		var data = evt.data;
