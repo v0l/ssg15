@@ -802,16 +802,16 @@ CSceneGame.prototype.RequestOutstandingPlayerNames = function( bAllowEmpty, call
 
 CSceneGame.prototype.OnGameDataUpdate = function()
 {
-	debugger; //TODO: Not sure what this does
+	//TODO: Not sure what this does
 	this.m_bRunning = this.m_rgGameData.status != '3';
 
 	if( this.m_rgGameData.universe_state && g_eUniverseState != this.m_rgGameData.universe_state )
 	{
 		g_eUniverseState = this.m_rgGameData.universe_state;
-
+		console.log(g_eUniverseState);
 		var instance = this;
 
-		$J.ajax({
+		/*$J.ajax({
 			url: 'http://steamcommunity-a.akamaihd.net/public/javascript/minigame/towerattack/' + this.m_rgGameData.universe_state + '/script.js',
 			dataType: "script"
 		}).done(
@@ -822,7 +822,7 @@ CSceneGame.prototype.OnGameDataUpdate = function()
 					instance.m_rgEnemies.shift();
 				}
 			}
-		);
+		);*/
 
 
 	}
@@ -843,6 +843,7 @@ CSceneGame.prototype.OnGameDataUpdate = function()
 	}
 
 
+	//TODO: fix time sync check
 	if( Math.abs( this.m_nSimulatedTime - this.m_rgGameData.timestamp ) > 2 )
 	{
 		// We're more than 2 seconds ahead or behind of the server, slam to the server's value
@@ -1960,6 +1961,7 @@ function CalcExponentialTuningValve( level, coefficient, base )
 
 // A shoddy implementation of an otherwise reasonable prng
 function xorprng( x, nMax ) {
+	debugger;
 	x ^= parseInt( g_GameID ); // a
 	x ^= x << 25; // b
 	x ^= x >> 27; // c

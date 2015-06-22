@@ -1,29 +1,25 @@
-var Config = require('./server.config.js');
+var ssg15 = require('./globals.js');
 var WebSocketServer = require('websocket').server;
 var fs = require('fs');
 var http = require('http');
-var RDS = require('ioredis');
-var redis = new RDS();
-var ByteBuffer = require("bytebuffer");
-var protobuf = require('protocol-buffers');
-var comm = protobuf(fs.readFileSync(Config.TowerAttackDir+'/cfg/messages.proto'));
-var UUID = require("uuid");
-var NodeStatic = require("node-static");
-var Room = require('./room.js');
+var comm = ssg15.Protobuf(fs.readFileSync(ssg15.Config.PublicDir+'/cfg/messages.proto'));
 
 // Have a local file server and other things when testing
 var fileServer = null;
-if (Config.Enviroment == "dev") {
-	fileServer = new NodeStatic.Server(Config.PublicDir, {cache: false });
+if (ssg15.Config.Enviroment == "dev") {
+	fileServer = new ssg15.NodeStatic.Server(ssg15.Config.PublicDir, {cache: false });
 }
 
 var server = http.createServer(function(request, response) {
-	if (Config.Enviroment == "dev") {
+	if (ssg15.Config.Enviroment == "dev") {
     	fileServer.serve(request, response);
-    }
+    }else{
+		response.writeHead(404);
+		response.end();
+	}
 });
 server.listen(8080, function() {
-    console.log((new Date()) + ' Server is listening on port 8080');
+    console.log((new Date()) + ' Server is listening on port 8080' + (ssg15.Config.Enviroment == "dev" ? " (dev mode)" : ""));
 });
  
 wsServer = new WebSocketServer({
@@ -46,17 +42,25 @@ wsServer.on('request', function(request) {
     var connection = request.accept();
     connection.session = { 
 			name: "Unknown",
-			id: UUID.v4(),
+			id: ssg15.UUID.v4(),
 			data: {
-				hp: undefined,
-				current_lane: undefined,
+				hp: 1000,
+				current_lane: 0,
 				target: undefined,
 				time_died: undefined,
-				gold: 0,
+				gold: 69,
 				active_abilities_bitfield: undefined,
 				active_abilities: [],
-				crit_damage: undefined,
+				crit_damage: 0,
 				loot: []
+			},
+			tech_tree: {
+				upgrades: [],
+				badge_points: 0,
+				ability_items: [],
+				base_dps: 10,
+				max_hp: 1000,
+				dps: 10
 			}
 	};
 	
@@ -76,12 +80,69 @@ wsServer.on('request', function(request) {
 					var rsp_d = {
 						id: msg.id,
 						type: msg.type,
-						GetGameData_Response: comm.CTowerAttack_GameData.encode({}})
-						
+						GetGameData_Response: {
+							game_data: {
+								level: 1,
+								lanes: [
+									{
+										enemies: [],
+										dps: 0,
+										gold_dropped: 0,
+										active_player_abilities: [],
+										player_hp_buckets: [],
+										element: comm.ETowerAttackElement.Fire
+									}, 
+									{
+										enemies: [
+										{
+											id: 1,
+											type: comm.ETowerAttackEnemyType.k_ETowerAttackEnemyType_Tower,
+											hp: 120000,
+											max_hp: 1200000,
+											dps: 10,
+											timer: 0,
+											gold: 999
+										}],
+										dps: 0,
+										gold_dropped: 0,
+										active_player_abilities: [],
+										player_hp_buckets: [],
+										element: comm.ETowerAttackElement.Fire
+									}, 
+									{
+										enemies: [],
+										dps: 0,
+										gold_dropped: 0,
+										active_player_abilities: [],
+										player_hp_buckets: [],
+										element: comm.ETowerAttackElement.Fire
+									}
+								],
+								timestamp: new Date().getTime(),
+								status: comm.EMiniGameStatus.k_EMiniGameStatus_Running,
+								events: [],
+								timestamp_game_start: new Date().getTime() - 9000,
+								timestamp_level_start: new Date().getTime()
+							},
+							stats:{
+								num_players: 69,
+								num_mobs_killed: 0,
+								num_towers_killed: 0,
+								num_minibosses_killed: 0,
+								num_bosses_killed: 0,
+								num_clicks: 0,
+								num_abilities_activated: 0,
+								num_players_reaching_milestone_level: 0,
+								num_ability_items_activated: 0,
+								num_active_players: 1,
+								time_simulating: 0,
+								time_saving: 0
+							}
+						}						
 					};
 					
 					var rsp = comm.CTowerAttack_Response.encode(rsp_d);
-					connection.sendBytes(rsp.toArrayBuffer());
+					connection.sendBytes(rsp);
 					break;
 				}
 				case 1:{
@@ -91,13 +152,13 @@ wsServer.on('request', function(request) {
 						type: msg.type,
 						GetPlayerNames_Response: 
 							[
-								{ id: 1234, name: "Kieran" }
+								{ accountid: 1234, name: "Kieran" }
 							]
 						
 					};
 					
 					var rsp = comm.CTowerAttack_Response.encode(rsp_d);
-					connection.sendBytes(rsp.toArrayBuffer());
+					connection.sendBytes(rsp);
 					break;
 				}
 				case 2:{
@@ -116,7 +177,26 @@ wsServer.on('request', function(request) {
 				}
 				case 3:{
 					//use abilities
+					var req = msg.UseAbilities_Request;
+					for(var x=0;x<req.requested_abilities.length;x++){
+						var ab = req.requested_abilities[x];
+						if(ab.ability == comm.ETowerAttackAbility.k_ETowerAttackAbility_ChangeLane){
+							connection.session.data.current_lane = ab.new_lane;
+							console.log("New lane is: " + ab.new_lane);
+						}
+					}
 					
+					//send player data back
+					var rsp_d = {
+						id: msg.id,
+						type: msg.type,
+						UseAbilities_Response:{
+							player_data: connection.session.data,
+							tech_tree: connection.session.tech_tree
+						}
+					};
+					var rsp = comm.CTowerAttack_Response.encode(rsp_d);
+					connection.sendBytes(rsp);
 					break;
 				}
 				case 4:{

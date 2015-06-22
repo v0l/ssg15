@@ -50,12 +50,84 @@ CServerInterface.prototype.Connect = function( callback )
 		// Dunno how to decode or how to pass this off to where it needs to go
 		var data = evt.data;
 		var msg = instance.m_protobuf_Responce.decode(data);
-		console.log("Websocket Data:");
-		console.dir(msg);
-		if (playerDataTest && msg.GetPlayerData_Response)
-			playerDataTest({response: msg.GetPlayerData_Response});
-		else if (gameDataTest && msg.GetGameData_Response)
-			gameDataTest({response: msg.GetGameData_Response});
+
+		//fire the callback based on the msg id (message seq)
+		switch(msg.type){
+			case 0:{
+				//get game data
+				var cb = instance.m_ws_cbq[msg.id];
+				if(cb != undefined){
+					cb(msg.GetGameData_Response);
+				}
+				break;
+			}
+			case 1:{
+				//get player names
+				var cb = instance.m_ws_cbq[msg.id];
+				if(cb != undefined){
+					cb(msg.GetPlayerNames_Response);
+				}
+				break;
+			}
+			case 2:{
+				//get player data
+				var cb = instance.m_ws_cbq[msg.id];
+				if(cb != undefined){
+					cb(msg.GetPlayerData_Response);
+				}
+				break;
+			}
+			case 3:{
+				//use abilities
+				var cb = instance.m_ws_cbq[msg.id];
+				if(cb != undefined){
+					cb(msg.UseAbilities_Response);
+				}
+				break;
+			}
+			case 4:{
+				//choose upgrade
+				var cb = instance.m_ws_cbq[msg.id];
+				if(cb != undefined){
+					cb(msg.ChooseUpgrade_Response);
+				}
+				break;
+			}
+			case 5:{
+				//get tuning data
+				var cb = instance.m_ws_cbq[msg.id];
+				if(cb != undefined){
+					cb(msg.GetTuningData_Response);
+				}
+				break;
+			}
+			case 6:{
+				//get daily stats rollup
+				var cb = instance.m_ws_cbq[msg.id];
+				if(cb != undefined){
+					cb(msg.GetDailyStatsRollup_Response);
+				}
+				break;	
+			}
+			case 7:{
+				//handle game event
+				break;
+			}
+			case 8:{
+				//use badge points
+				
+				break;
+			}
+			case 9:{
+				//quit game
+				
+				break;
+			}
+			default:{
+				console.log("Unknown type: "+msg.type);
+				break;
+			}
+		}
 	};
 
 	// Wait for the connection to be ready
@@ -95,7 +167,6 @@ CServerInterface.prototype.GetGameTuningData = function( callback )
 	instance.Write(instance.m_protobuf_Request(rgParams), callback);
 }
 
-var gameDataTest = null;
 CServerInterface.prototype.GetGameData = function( callback, error, bIncludeStats )
 {
 	var instance = this;
@@ -110,12 +181,9 @@ CServerInterface.prototype.GetGameData = function( callback, error, bIncludeStat
 	};
 
 	instance.Write(new instance.m_protobuf_Request(rgParams), function(rgResult){
-		var message = instance.m_protobuf_GetGameDataResponse.decode(rgResult);
-		var result = { 'response': message.toRaw( true, true ) };
+		var result = { 'response': rgResult.toRaw( true, true ) };
 		callback( result );
 	});
-
-	gameDataTest = callback;
 }
 
 CServerInterface.prototype.GetPlayerNames = function( callback, error, rgAccountIDs )
@@ -132,13 +200,11 @@ CServerInterface.prototype.GetPlayerNames = function( callback, error, rgAccount
 	};
 
 	instance.Write(new instance.m_protobuf_Request(rgParams), function(rgResult){
-		var message = instance.m_protobuf_GetPlayerNamesResponse.decode(rgResult);
-		var result = { 'response': message.toRaw( true, true ) };
+		var result = { 'response': rgResult.toRaw( true, true ) };
 		callback( result );
 	});
 }
 
-var playerDataTest = null;
 CServerInterface.prototype.GetPlayerData = function( callback, error, bIncludeTechTree )
 {
 	var instance = this;
@@ -153,11 +219,9 @@ CServerInterface.prototype.GetPlayerData = function( callback, error, bIncludeTe
 	};
 
 	instance.Write(new instance.m_protobuf_Request(rgParams), function(rgResult){
-		var message = instance.m_protobuf_GetPlayerDataResponse.decode(rgResult);
-		var result = { 'response': message.toRaw( true, true ) };
+		var result = { 'response': rgResult.toRaw( true, true ) };
 		callback( result );
 	});
-	playerDataTest = callback;
 }
 
 CServerInterface.prototype.UseAbilities = function( callback, failed, rgParams )
@@ -173,8 +237,7 @@ CServerInterface.prototype.UseAbilities = function( callback, failed, rgParams )
 	};
 
 	instance.Write(new instance.m_protobuf_Request(rgRequest), function(rgResult){
-		var message = instance.m_protobuf_UseAbilitiesResponse.decode(rgResult);
-		var result = { 'response': message.toRaw( true, true ) };
+		var result = { 'response': rgResult.toRaw( true, true ) };
 		if ( result.response.player_data )
 		{
 			result.response.player_data.active_abilities_bitfield = result.response.player_data.active_abilities_bitfield ? parseInt( result.response.player_data.active_abilities_bitfield ) : 0;
@@ -201,8 +264,7 @@ CServerInterface.prototype.ChooseUpgrades = function( callback, upgrades )
 	};
 	
 	instance.Write(new instance.m_protobuf_Request(rgRequest), function(rgResult){
-		var message = instance.m_protobuf_ChooseUpgradeResponse.decode(rgResult);
-		var result = { 'response': message.toRaw( true, true ) };
+		var result = { 'response': rgResult.toRaw( true, true ) };
 		if ( result.response.tech_tree )
 		{
 			result.response.tech_tree.unlocked_abilities_bitfield = result.response.tech_tree.unlocked_abilities_bitfield ? parseInt( result.response.tech_tree.unlocked_abilities_bitfield ) : 0;
@@ -225,8 +287,7 @@ CServerInterface.prototype.UseBadgePoints = function( callback, abilityItems )
 	};
 	
 	instance.Write(new instance.m_protobuf_Request(rgRequest), function(rgResult){
-		var message = instance.m_protobuf_UseBadgePointsResponse.decode(rgResult);
-		var result = { 'response': message.toRaw( true, true ) };
+		var result = { 'response': rgResult.toRaw( true, true ) };
 		if ( result.response.tech_tree )
 		{
 			result.response.tech_tree.unlocked_abilities_bitfield = result.response.tech_tree.unlocked_abilities_bitfield ? parseInt( result.response.tech_tree.unlocked_abilities_bitfield ) : 0;

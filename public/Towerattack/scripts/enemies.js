@@ -227,13 +227,20 @@ CEnemy.prototype.SetAttachment = function(strSlot, strItem)
 	this.m_Sprite.skeleton.setAttachment( strSlot, strItem );
 }
 
+CEnemy.prototype.xorprng = function( x, nMax ) 
+{
+	x ^= parseInt( g_GameID ); // a
+	x ^= x << 25; // b
+	x ^= x >> 27; // c
+	return ( x * 338717 ) % nMax;
+}
+
 CEnemy.prototype.GetName = function()
 {
 	var rgNames = g_rgNamesMap[this.m_strSkinName];
 	if( !rgNames )
 		return "Jaegar";
-
-	var nIndex = xorprng( this.m_nID + this.m_Game.m_rgGameData.level * 10 + this.m_nLane * 100, rgNames.length );
+	var nIndex = this.xorprng( this.m_nID + this.m_Game.m_rgGameData.level * 10 + this.m_nLane * 100, rgNames.length );
 
 	if( typeof QuickFixText != 'undefined' )
 		return QuickFixText( rgNames[ nIndex ] );

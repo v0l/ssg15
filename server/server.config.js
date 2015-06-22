@@ -1,6 +1,5 @@
 module.exports = {
 	Enviroment: "dev",
 
-	PublicDir: "../public",
-	TowerAttackDir: "../public/Towerattack"
+	PublicDir: "../public/Towerattack"
 };

@@ -229,7 +229,7 @@ body.flat_page.game.chromeless {
 
 #elements .element_cost .cost {
 	color: #e1b21e;
-	background-image: url('http://cdn.steamcommunity.com//economy/emoticon/:coinz:');
+	background-image: url('../media/coinz.png');
 	background-repeat: no-repeat;
 	background-position: left;
 	background-size: 14px 14px;
@@ -341,7 +341,7 @@ body.flat_page.game.chromeless {
 {
 	margin-bottom: 10px;
 	color: #407898;
-	background-image: url('http://cdn.steamcommunity.com//economy/emoticon/:sheriffsbadge:');
+	background-image: url('../media/sheriffsbadge.png');
 	background-repeat: no-repeat;
 	background-position: left;
 	background-size: 13px 13px;
@@ -402,7 +402,7 @@ body.flat_page.game.chromeless {
 	color: #fff;
 	display: block;
 	line-height: 12px;
-	background-image: url('http://cdn.steamcommunity.com//economy/emoticon/:sheriffsbadge:');
+	background-image: url('../media/sheriffsbadge.png');
 	background-repeat: no-repeat;
 	background-position: left;
 	background-size: 13px 13px;
@@ -1192,7 +1192,7 @@ body.flat_page.game.chromeless {
 
 .upgrade .cost {
 	color: #e1b21e;
-	background-image: url('http://cdn.steamcommunity.com//economy/emoticon/:coinz:');
+	background-image: url('../media/coinz.png');
 	background-repeat: no-repeat;
 	background-position: left;
 	background-size: 14px 14px;
@@ -1609,17 +1609,17 @@ body.flat_page.game.chromeless {
 
 
 .icon_fire, .element_1 {
-	background-image: url('../media/:shelterwildfire:');
+	background-image: url('../media/shelterwildfire.png');
 }
 
 .icon_water, .element_2 {
-	background-image: url('../media/:waterrune:');
+	background-image: url('../media/waterrune.png');
 }
 
 .icon_air, .element_3 {
-	background-image: url('../media/:Wisp:');
+	background-image: url('../media/Wisp.png');
 }
 
 .icon_earth, .element_4 {
-	background-image: url('../media/:FateTree:');
+	background-image: url('../media/FateTree.png');
 }
