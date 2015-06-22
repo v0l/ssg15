@@ -44,12 +44,19 @@ CServerInterface.prototype.Connect = function( callback )
 	
 	instance.m_strSteamID = rgResult.steamid;
 	instance.m_strWebAPIHost = rgResult.webapi_host;
-	instance.m_ws = new WebSocket( rgResult.webapi_host );
-	instance.m_ws.onmessage += function(evt){
-		console.log(evt);
+	instance.m_ws = new WebSocket( instance.m_strWebAPIHost );
+	instance.m_ws.onmessage = function(evt){
+		// Dunno how to decode or how to pass this off to where it needs to go
+		var data = evt.data;
+		console.log("Websocket Data:");
+		console.dir(data);
 	};
-	instance.m_ws.binaryType = "arraybuffer";
-	callback(rgResult);
+
+	// Wait for the connection to be ready
+	instance.m_ws.onopen = function(){
+		instance.m_ws.binaryType = "arraybuffer";
+		callback(rgResult);
+	};
 }
 
 CServerInterface.prototype.BuildURL = function() { }

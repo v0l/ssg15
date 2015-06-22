@@ -14,7 +14,7 @@ var Room = require('./room.js');
 // Have a local file server and other things when testing
 var fileServer = null;
 if (Config.Enviroment == "dev") {
-	fileServer = new NodeStatic.Server(Config.PublicDir);
+	fileServer = new NodeStatic.Server(Config.PublicDir, {cache: false });
 }
 
 var server = http.createServer(function(request, response) {
@@ -62,6 +62,7 @@ wsServer.on('request', function(request) {
 	
     console.log((new Date()) + ' Connection accepted.('+request.origin+')');
     connection.on('message', function(message) {
+
         if (message.type === 'utf8') {
             console.log('Received Message: ' + message.utf8Data);
         }
