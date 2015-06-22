@@ -73,7 +73,15 @@ wsServer.on('request', function(request) {
             switch(msg.type){
 				case 0:{
 					//get game data
+					var rsp_d = {
+						id: msg.id,
+						type: msg.type,
+						GetGameData_Response: comm.CTowerAttack_GameData.encode({}})
+						
+					};
 					
+					var rsp = comm.CTowerAttack_Response.encode(rsp_d);
+					connection.sendBytes(rsp.toArrayBuffer());
 					break;
 				}
 				case 1:{
