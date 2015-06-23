@@ -45,7 +45,7 @@ CServerInterface.prototype.Connect = function( callback )
 	
 	instance.m_strSteamID = rgResult.steamid;
 	instance.m_strWebAPIHost = rgResult.webapi_host;
-	instance.m_ws = new WebSocket( "ws:\/\/"+location.host );
+	instance.m_ws = new WebSocket( "ws:\/\/"+location.host+"/ws");
 	instance.m_ws.onmessage = function(evt){
 		// Dunno how to decode or how to pass this off to where it needs to go
 		var data = evt.data;
@@ -60,7 +60,7 @@ CServerInterface.prototype.Connect = function( callback )
 					if(msg.GetGameData_Response.data == undefined)
 					{
 						//something went wrong? redirect to login/lobby page
-						window.location = '/login';
+						window.location = '/lobby';
 					}
 					cb(msg.GetGameData_Response);
 				}
