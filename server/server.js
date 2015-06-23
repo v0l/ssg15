@@ -16,7 +16,7 @@ var comm = Protobuf(fs.readFileSync(ssg15.Config.PublicDir+'/cfg/messages.proto'
 var app = express();
 
 app.use(express.static(ssg15.Config.PublicDir));
-app.engine('handlebars', exphbs({defaultLayout: 'main'}));
+app.engine('handlebars', exphbs({ defaultLayout: 'main', partialsDir: ssg15.Config.AppDir, layoutsDir: ssg15.Config.AppDir+'layouts/' }));
 app.set('view engine', 'handlebars');
 app.set('views', ssg15.Config.AppDir);
 
@@ -58,7 +58,7 @@ ws.on('connection', function(ws) {
 				var msg = comm.CTowerAttack_Request.decode(data);
 				//console.log('Got msg: '+msg.id+'-'+msg.type+' ('+ws.session.id+')');
 				pl.HandleMessage(msg, function(rsp){
-					
+					ws.send(rsp, { binary: true });
 				});
 			}
 		}
