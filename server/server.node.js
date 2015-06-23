@@ -1,4 +1,4 @@
-var ssg15 = require('./globals.js');
+var ssg15 = require('./globals');
 var WebSocketServer = require('websocket').server;
 var fs = require('fs');
 var http = require('http');
@@ -6,19 +6,25 @@ var comm = ssg15.Protobuf(fs.readFileSync(ssg15.Config.PublicDir+'/cfg/messages.
 
 // Have a local file server and other things when testing
 var fileServer = null;
-if (ssg15.Config.Enviroment == "dev") {
+if (ssg15.Config.Enviroment == "dev") 
+{
 	fileServer = new ssg15.NodeStatic.Server(ssg15.Config.PublicDir, {cache: false });
 }
 
-var server = http.createServer(function(request, response) {
-	if (ssg15.Config.Enviroment == "dev") {
+var server = http.createServer(function(request, response) 
+{
+	if (ssg15.Config.Enviroment == "dev") 
+	{
     	fileServer.serve(request, response);
-    }else{
+    }
+    else
+    {
 		response.writeHead(404);
 		response.end();
 	}
 });
-server.listen(8080, function() {
+server.listen(8080, function() 
+{
     console.log((new Date()) + ' Server is listening on port 8080' + (ssg15.Config.Enviroment == "dev" ? " (dev mode)" : ""));
 });
  
@@ -27,12 +33,15 @@ wsServer = new WebSocketServer({
     autoAcceptConnections: false
 });
  
-function originIsAllowed(origin) {
+function originIsAllowed(origin) 
+{
   return true;
 }
  
-wsServer.on('request', function(request) {
-    if (!originIsAllowed(request.origin)) {
+wsServer.on('request', function(request) 
+{
+    if (!originIsAllowed(request.origin)) 
+    {
       // Make sure we only accept requests from an allowed origin 
       request.reject();
       console.log((new Date()) + ' Connection from origin ' + request.origin + ' rejected.');
@@ -40,202 +49,160 @@ wsServer.on('request', function(request) {
     }
     
     var connection = request.accept();
-    connection.session = { 
-			name: "Unknown",
-			id: ssg15.UUID.v4(),
-			data: {
-				hp: 1000,
-				current_lane: 0,
-				target: undefined,
-				time_died: undefined,
-				gold: 69,
-				active_abilities_bitfield: undefined,
-				active_abilities: [],
-				crit_damage: 0,
-				loot: []
-			},
-			tech_tree: {
-				upgrades: [],
-				badge_points: 0,
-				ability_items: [],
-				base_dps: 10,
-				max_hp: 1000,
-				dps: 10
-			}
+    connection.session = {
+		id: ssg15.UUID.v4()
 	};
+	
+	var npl = new ssg15.Player(connection.session.id);
+	ssg15.Players[connection.session.id] = npl;
 	
     console.log((new Date()) + ' Connection accepted.('+request.origin+')');
     connection.on('message', function(message) {
 
-        if (message.type === 'utf8') {
+        if (message.type === 'utf8') 
+        {
             console.log('Received Message: ' + message.utf8Data);
         }
-        else if (message.type === 'binary') {
+        else if (message.type === 'binary') 
+        {
             var msg = comm.CTowerAttack_Request.decode(message.binaryData);
-            console.log("Got msg: "+msg.id+"/"+msg.type);
+            console.log('Got msg: '+msg.id+'-'+msg.type+' ('+connection.session+')');
             
-            switch(msg.type){
-				case 0:{
-					//get game data
-					var rsp_d = {
-						id: msg.id,
-						type: msg.type,
-						GetGameData_Response: {
-							game_data: {
-								level: 1,
-								lanes: [
-									{
-										enemies: [],
-										dps: 0,
-										gold_dropped: 0,
-										active_player_abilities: [],
-										player_hp_buckets: [],
-										element: comm.ETowerAttackElement.Fire
-									}, 
-									{
-										enemies: [
-										{
-											id: 1,
-											type: comm.ETowerAttackEnemyType.k_ETowerAttackEnemyType_Tower,
-											hp: 120000,
-											max_hp: 1200000,
-											dps: 10,
-											timer: 0,
-											gold: 999
-										}],
-										dps: 0,
-										gold_dropped: 0,
-										active_player_abilities: [],
-										player_hp_buckets: [],
-										element: comm.ETowerAttackElement.Fire
-									}, 
-									{
-										enemies: [],
-										dps: 0,
-										gold_dropped: 0,
-										active_player_abilities: [],
-										player_hp_buckets: [],
-										element: comm.ETowerAttackElement.Fire
-									}
-								],
-								timestamp: new Date().getTime(),
-								status: comm.EMiniGameStatus.k_EMiniGameStatus_Running,
-								events: [],
-								timestamp_game_start: new Date().getTime() - 9000,
-								timestamp_level_start: new Date().getTime()
-							},
-							stats:{
-								num_players: 69,
-								num_mobs_killed: 0,
-								num_towers_killed: 0,
-								num_minibosses_killed: 0,
-								num_bosses_killed: 0,
-								num_clicks: 0,
-								num_abilities_activated: 0,
-								num_players_reaching_milestone_level: 0,
-								num_ability_items_activated: 0,
-								num_active_players: 1,
-								time_simulating: 0,
-								time_saving: 0
-							}
-						}						
-					};
-					
-					var rsp = comm.CTowerAttack_Response.encode(rsp_d);
-					connection.sendBytes(rsp);
-					break;
-				}
-				case 1:{
-					//get player names
-					var rsp_d = {
-						id: msg.id,
-						type: msg.type,
-						GetPlayerNames_Response: 
-							[
-								{ accountid: 1234, name: "Kieran" }
-							]
+            //get player object 
+            var pl = ssg15.Players[connection.session.id];
+            
+            if(pl == undefined)
+            {
+				console.log('Server error, player data is null!');
+			}
+			else
+			{
+				switch(msg.type){
+					case 0:{
+						//get game data
+						var rm = ssg15.Rooms[pl._roomId];
+						var rsp_d = {
+							id: msg.id,
+							type: msg.type,
+							GetGameData_Response: {
+								game_data: null,
+								stats: null
+							}						
+						};
 						
-					};
-					
-					var rsp = comm.CTowerAttack_Response.encode(rsp_d);
-					connection.sendBytes(rsp);
-					break;
-				}
-				case 2:{
-					//get player data
-					var rsp_d = {
-						id: msg.id,
-						type: msg.type,
-						GetPlayerData_Response:{
-							player_data: connection.session.data,
-							tech_tree: msg.GetPlayerData_Request.include_tech_tree ? connection.session.tech_tree : undefined
+						if(rm !== undefined)
+						{
+							rsp_d.GetGameData_Response.game_data = rm._data;
+							rsp_d.GetGameData_Response.stats = rm._stats;
 						}
-					};
-					var rsp = comm.CTowerAttack_Response.encode(rsp_d);
-					connection.sendBytes(rsp);
-					break;
-				}
-				case 3:{
-					//use abilities
-					var req = msg.UseAbilities_Request;
-					for(var x=0;x<req.requested_abilities.length;x++){
-						var ab = req.requested_abilities[x];
-						if(ab.ability == comm.ETowerAttackAbility.k_ETowerAttackAbility_ChangeLane){
-							connection.session.data.current_lane = ab.new_lane;
-							console.log("New lane is: " + ab.new_lane);
+						else
+						{
+							console.log('Room '+pl._roomId+' does not exist');
 						}
+						
+						var rsp = comm.CTowerAttack_Response.encode(rsp_d);
+						connection.sendBytes(rsp);
+						break;
 					}
-					
-					//send player data back
-					var rsp_d = {
-						id: msg.id,
-						type: msg.type,
-						UseAbilities_Response:{
-							player_data: connection.session.data,
-							tech_tree: connection.session.tech_tree
+					case 1:{
+						//get player names
+						var rsp_d = {
+							id: msg.id,
+							type: msg.type,
+							GetPlayerNames_Response: [ ]
+						};
+						
+						for(var x=0;x<ssg15.Players.length;x++){
+							var p = ssg15.Players[x];
+							
+							if(p._roomId == pl._roomId){
+								rsp_d.GetPlayerNames_Response.push({
+									accountid: pl.id,
+									name: pl.name
+								});
+							}
 						}
-					};
-					var rsp = comm.CTowerAttack_Response.encode(rsp_d);
-					connection.sendBytes(rsp);
-					break;
-				}
-				case 4:{
-					//choose upgrade
-					
-					break;
-				}
-				case 5:{
-					//get tuning data
-					
-					break;
-				}
-				case 6:{
-					//get daily stats rollup
-					
-					break;	
-				}
-				case 7:{
-					//handle game event
-					break;
-				}
-				case 8:{
-					//use badge points
-					
-					break;
-				}
-				case 9:{
-					//quit game
-					
-					break;
-				}
-				default:{
-					console.log("Unknown type: "+msg.type);
-					break;
+						
+						var rsp = comm.CTowerAttack_Response.encode(rsp_d);
+						connection.sendBytes(rsp);
+						break;
+					}
+					case 2:{
+						//get player data
+						var rsp_d = {
+							id: msg.id,
+							type: msg.type,
+							GetPlayerData_Response:{
+								player_data: connection.session.data,
+								tech_tree: msg.GetPlayerData_Request.include_tech_tree ? connection.session.tech_tree : undefined
+							}
+						};
+						var rsp = comm.CTowerAttack_Response.encode(rsp_d);
+						connection.sendBytes(rsp);
+						break;
+					}
+					case 3:{
+						//use abilities
+						var req = msg.UseAbilities_Request;
+						for(var x=0;x<req.requested_abilities.length;x++){
+							var ab = req.requested_abilities[x];
+							if(ab.ability == comm.ETowerAttackAbility.k_ETowerAttackAbility_ChangeLane){
+								pl._data.current_lane = ab.new_lane;
+							}
+						}
+						
+						//send player data back
+						var rsp_d = {
+							id: msg.id,
+							type: msg.type,
+							UseAbilities_Response:{
+								player_data: pl._data,
+								tech_tree: pl._tech
+							}
+						};
+						var rsp = comm.CTowerAttack_Response.encode(rsp_d);
+						connection.sendBytes(rsp);
+						break;
+					}
+					case 4:{
+						//choose upgrade
+						
+						break;
+					}
+					case 5:{
+						//get tuning data
+						
+						break;
+					}
+					case 6:{
+						//get daily stats rollup
+						
+						break;	
+					}
+					case 7:{
+						//handle game event
+						break;
+					}
+					case 8:{
+						//use badge points
+						
+						break;
+					}
+					case 9:{
+						//quit game
+						
+						break;
+					}
+					default:{
+						console.log("Unknown type: "+msg.type);
+						break;
+					}
 				}
 			}
         }
     });
-    connection.on('close', function(reasonCode, description) {
+    connection.on('close', function(reasonCode, description) 
+    {
         console.log((new Date()) + ' Peer ' + connection.remoteAddress + ' disconnected.');
     });
 });
