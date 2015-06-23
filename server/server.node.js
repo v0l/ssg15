@@ -1,14 +1,23 @@
-var ssg15 = require('./globals');
-var WebSocketServer = require('websocket').server;
 var fs = require('fs');
 var http = require('http');
-var comm = ssg15.Protobuf(fs.readFileSync(ssg15.Config.PublicDir+'/cfg/messages.proto'));
+
+var Redis = require('ioredis');
+var ByteBuffer = require("bytebuffer");
+var Protobuf = require('protocol-buffers');
+var UUID = require("uuid");
+var NodeStatic = require("node-static");
+var WebSocketServer = require('websocket').server;
+
+var Room = require('./room');
+var Player = require('./player');
+var ssg15 = require('./globals');
+var comm = Protobuf(fs.readFileSync(ssg15.Config.PublicDir+'/cfg/messages.proto'));
 
 // Have a local file server and other things when testing
 var fileServer = null;
 if (ssg15.Config.Enviroment == "dev") 
 {
-	fileServer = new ssg15.NodeStatic.Server(ssg15.Config.PublicDir, {cache: false });
+	fileServer = new NodeStatic.Server(ssg15.Config.PublicDir, {cache: false });
 }
 
 var server = http.createServer(function(request, response) 
@@ -50,10 +59,10 @@ wsServer.on('request', function(request)
     
     var connection = request.accept();
     connection.session = {
-		id: ssg15.UUID.v4()
+		id: UUID.v4()
 	};
 	
-	var npl = new ssg15.Player(connection.session.id);
+	var npl = new Player(connection.session.id);
 	ssg15.Players[connection.session.id] = npl;
 	
     console.log((new Date()) + ' Connection accepted.('+request.origin+')');
@@ -66,7 +75,7 @@ wsServer.on('request', function(request)
         else if (message.type === 'binary') 
         {
             var msg = comm.CTowerAttack_Request.decode(message.binaryData);
-            console.log('Got msg: '+msg.id+'-'+msg.type+' ('+connection.session+')');
+            console.log('Got msg: '+msg.id+'-'+msg.type+' ('+connection.session.id+')');
             
             //get player object 
             var pl = ssg15.Players[connection.session.id];

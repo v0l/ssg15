@@ -1,3 +1,4 @@
+var ssg15 = require('./globals');
 var Redis = require('ioredis');
 
 module.exports = function (id) {
@@ -61,6 +62,21 @@ module.exports = function (id) {
 	
 	this.JoinRoom = function(room)
 	{
-		
+		if(instance._roomId == 0)
+		{
+			var rm = ssg15.Rooms[room];
+			
+			//check there is room... in the room
+			if(rm._players.length < ssg15.Config.MaxPlayers)
+			{
+				//yay! - join le room
+				return rm.JoinPlayerToRoom(instance);
+			}
+		}
+		else
+		{
+			//player is already in a room
+			return { msg: 'You are already in a room!', ok: false };
+		}
 	};
 };
