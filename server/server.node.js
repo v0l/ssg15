@@ -151,7 +151,7 @@ wsServer.on('request', function(request)
 							}
 						}
 						
-						//send player data back
+						//send player data back 
 						var rsp_d = {
 							id: msg.id,
 							type: msg.type,

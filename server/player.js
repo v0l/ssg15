@@ -11,7 +11,7 @@ module.exports = function (id) {
 		hp: 1000,
 		current_lane: 0,
 		target: 0,
-		time_died: 0,
+		time_died: 0, 
 		gold: 0,
 		active_abilities_bitfield: 0,
 		active_abilities: [],

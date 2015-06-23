@@ -10,7 +10,7 @@ module.exports = function (id) {
 		level: 0,
 		lanes: [
 			{
-				enemies: [],
+				enemies: [], 
 				dps: 0,
 				gold_dropped: 0,
 				active_player_abilities: [],

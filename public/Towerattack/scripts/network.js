@@ -98,11 +98,11 @@ CServerInterface.prototype.Connect = function( callback )
 				var cb = instance.m_ws_cbq[msg.id];
 				if(cb != undefined){
 					cb(msg.GetTuningData_Response);
-				}
+				} 
 				break;
 			}
 			case 6:{
-				//get daily stats rollup
+				//get daily stats rollup 
 				var cb = instance.m_ws_cbq[msg.id];
 				if(cb != undefined){
 					cb(msg.GetDailyStatsRollup_Response);

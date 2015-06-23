@@ -6,7 +6,7 @@ module.exports = {
 	NodeStatic: require("node-static"),
 
 	Config: require('./server.config'),
-	Room: require('./room'),
+	Room: require('./room'), 
 	Player: require('./player'),
 		
 	Rooms: [],
