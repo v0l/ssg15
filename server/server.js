@@ -39,10 +39,8 @@ app.use(passport.initialize());
 app.use(passport.session());
 app.use(expressGlobals.globals);
 app.use(express.static(ssg15.Config.PublicDir));
-app.use(express.static(ssg15.Config.PublicDir+"/Towerattack")); // and the tower attack folder
-app.engine('handlebars', exphbs({ defaultLayout: 'main', partialsDir: ssg15.Config.AppDir, layoutsDir: ssg15.Config.AppDir+'layouts/', helpers: hbHelpers }));
+app.engine('handlebars', exphbs({ defaultLayout: 'main', helpers: hbHelpers }));
 app.set('view engine', 'handlebars');
-app.set('views', ssg15.Config.AppDir);
 
 var routes = {
 	game: new require('./views/game')(app)
