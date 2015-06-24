@@ -8,24 +8,101 @@ var UUID = require("uuid");
 var express = require("express");
 var exphbs = require('express-handlebars');
 var WebSocketServer = require("ws").Server;
+var passport = require('passport');
 
 var Room = require('./room');
 var Player = require('./player');
 var ssg15 = require('./globals');
-var comm = Protobuf(fs.readFileSync(ssg15.Config.PublicDir+'/TowerAttack/cfg/messages.proto'));
+var hbHelpers = require('./views/helpers');
+var expressGlobals = require('./express.global');
+var comm = Protobuf(fs.readFileSync(ssg15.Config.PublicDir+'/Towerattack/cfg/messages.proto'));
 var app = express();
+var SteamStrategy = require('passport-steam').Strategy;
 
+passport.serializeUser(function(user, done) {
+  done(null, user);
+});
+
+passport.deserializeUser(function(obj, done) {
+  done(null, obj);
+});
+
+passport.use(new SteamStrategy({
+	returnURL: 'http://localhost:8080/auth/steam/return',
+	realm: 'http://localhost:8080/',
+	apiKey: ssg15.Config.SteamAPIKey
+}, function(id, pro, done) {
+	process.nextTick(function() { pro.identifier = id; return done(null, pro); });
+}));
+
+app.use(expressGlobals.globals);
 app.use(express.static(ssg15.Config.PublicDir));
-app.engine('handlebars', exphbs({ defaultLayout: 'main', partialsDir: ssg15.Config.AppDir, layoutsDir: ssg15.Config.AppDir+'layouts/' }));
+app.use(passport.initialize());
+app.use(passport.session());
+  
+app.use(express.static(ssg15.Config.PublicDir+"/Towerattack")); // and the tower attack folder
+app.engine('handlebars', exphbs({ defaultLayout: 'main', partialsDir: ssg15.Config.AppDir, layoutsDir: ssg15.Config.AppDir+'layouts/', helpers: hbHelpers }));
 app.set('view engine', 'handlebars');
 app.set('views', ssg15.Config.AppDir);
 
+var routes = {
+	game: new require('./views/game')(app)
+};
+app.get('/', function(req, res) {
+	if(req.isAuthenticated()) 
+	{
+		res.redirect('/Towerattack/');
+	}
+	else
+	{
+		res.redirect('/login');
+	}
+});
+
+app.get('/TowerAttack', function(req, res) {
+	if(req.isAuthenticated() || ssg15.Config.Env == 'dev') 
+	{
+		res.render('game', { user: req.user });
+	}
+	else
+	{
+		res.redirect('/login');
+	}
+});
+
 app.get('/login', function(req, res) {
-	res.render('login');
+	if(req.isAuthenticated()) 
+	{
+		res.redirect('/lobby');
+	}
+	else
+	{
+		res.render('login');
+	}
 });
 
 app.get('/lobby', function(req, res) {
-	res.render('lobby');
+	if(!req.isAuthenticated()) 
+	{
+		res.redirect('/login');
+	}
+	else
+	{
+		res.render('lobby', { user: req.user });
+	}
+});
+
+app.get('/auth/steam', passport.authenticate('steam', { failureRedirect: '/login#failed' }), function(req, res) {
+	res.redirect('/lobby');
+});
+  
+app.get('/auth/steam/return', passport.authenticate('steam', { failureRedirect: '/login#failed' }), function(req, res) {
+    res.redirect('/lobby');
+});
+
+app.get('/logout', function(req, res) {
+  req.logout();
+  res.redirect('/login');
 });
 
 var server = app.listen(8080, function () {
