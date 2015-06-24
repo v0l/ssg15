@@ -15,10 +15,15 @@ var Player = require('./player');
 var ssg15 = require('./globals');
 var hbHelpers = require('./views/helpers');
 var expressGlobals = require('./express.global');
+<<<<<<< HEAD
 var comm = Protobuf(fs.readFileSync(ssg15.Config.PublicDir+'/Towerattack/cfg/messages.proto'));
+=======
+var comm = Protobuf(fs.readFileSync(ssg15.Config.PublicDir+'/TowerAttack/cfg/messages.proto'));
+>>>>>>> be4e8b5bfea7fd5edd3273edf15adb38eec4ae27
 var app = express();
 var SteamStrategy = require('passport-steam').Strategy;
 
+<<<<<<< HEAD
 passport.serializeUser(function(user, done) {
   done(null, user);
 });
@@ -40,11 +45,17 @@ app.use(express.static(ssg15.Config.PublicDir));
 app.use(passport.initialize());
 app.use(passport.session());
   
+=======
+// Expose the request to handlebars
+app.use(expressGlobals.globals);
+app.use(express.static(ssg15.Config.PublicDir));
+>>>>>>> be4e8b5bfea7fd5edd3273edf15adb38eec4ae27
 app.use(express.static(ssg15.Config.PublicDir+"/Towerattack")); // and the tower attack folder
 app.engine('handlebars', exphbs({ defaultLayout: 'main', partialsDir: ssg15.Config.AppDir, layoutsDir: ssg15.Config.AppDir+'layouts/', helpers: hbHelpers }));
 app.set('view engine', 'handlebars');
 app.set('views', ssg15.Config.AppDir);
 
+<<<<<<< HEAD
 var routes = {
 	game: new require('./views/game')(app)
 };
@@ -69,6 +80,12 @@ app.get('/TowerAttack', function(req, res) {
 		res.redirect('/login');
 	}
 });
+=======
+// page routes and viewm odels
+var routes = {
+	game: new require('./views/game')(app)
+};
+>>>>>>> be4e8b5bfea7fd5edd3273edf15adb38eec4ae27
 
 app.get('/login', function(req, res) {
 	if(req.isAuthenticated()) 

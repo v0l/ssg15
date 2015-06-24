@@ -8,11 +8,11 @@ body
 
   background-color: rgba(0, 0, 1, 0.5);
   background-repeat:no-repeat;
-  .background-size(cover);
+  background-size: cover;
 
   color: white;
   font-family: Helvetica, Verdana;
-
+  background-image: url('https://upload.wikimedia.org/wikipedia/commons/f/fc/Emu-wild.jpg') !important;
   background-attachment: fixed;
   overflow-x:hidden; overflow-y:auto;
 }
@@ -38,4 +38,13 @@ body
 #fotter
 {
 
+}
+
+#gameCont
+{
+  position: relative;
+  float: left;
+  margin-top: 5px;
+  left: 50%;
+  margin-left: -640px;
 }
