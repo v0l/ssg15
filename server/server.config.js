@@ -6,7 +6,7 @@ module.exports = {
 	Port: 8080,
 	Secure: false,
 		
-	SteamAPIKey: '548AE99AD2345B97F217E36C46894951',
+	SteamAPIKey: '298F9DA4CC9F6B5C3AFA0DF38B73C415',
 	
 	//Room settings
 	MaxPlayers: 10000
