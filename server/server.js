@@ -28,8 +28,8 @@ passport.deserializeUser(function(obj, done) {
 });
 
 passport.use(new SteamStrategy({
-	returnURL: 'http://localhost:8080/auth/steam/return',
-	realm: 'http://localhost:8080/',
+	returnURL: ssg15.Config.getUrl()+'auth/steam/return',
+	realm: ssg15.Config.getUrl(),
 	apiKey: ssg15.Config.SteamAPIKey
 }, function(id, pro, done) {
 	process.nextTick(function() { pro.identifier = id; return done(null, pro); });
