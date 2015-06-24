@@ -12,13 +12,23 @@ var WebSocketServer = require("ws").Server;
 var Room = require('./room');
 var Player = require('./player');
 var ssg15 = require('./globals');
+var hbHelpers = require('./views/helpers');
+var expressGlobals = require('./express.global');
 var comm = Protobuf(fs.readFileSync(ssg15.Config.PublicDir+'/TowerAttack/cfg/messages.proto'));
 var app = express();
 
+// Expose the request to handlebars
+app.use(expressGlobals.globals);
 app.use(express.static(ssg15.Config.PublicDir));
-app.engine('handlebars', exphbs({ defaultLayout: 'main', partialsDir: ssg15.Config.AppDir, layoutsDir: ssg15.Config.AppDir+'layouts/' }));
+app.use(express.static(ssg15.Config.PublicDir+"/Towerattack")); // and the tower attack folder
+app.engine('handlebars', exphbs({ defaultLayout: 'main', partialsDir: ssg15.Config.AppDir, layoutsDir: ssg15.Config.AppDir+'layouts/', helpers: hbHelpers }));
 app.set('view engine', 'handlebars');
 app.set('views', ssg15.Config.AppDir);
+
+// page routes and viewm odels
+var routes = {
+	game: new require('./views/game')(app)
+};
 
 app.get('/login', function(req, res) {
 	res.render('login');
