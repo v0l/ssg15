@@ -1,8 +1,8 @@
 module.exports = {
 	Env: "dev",
-	PublicDir: "../public/Towerattack",
+	PublicDir: "../public",
 	AppDir: "../public/app/",
-	
+
 	//Room settings
 	MaxPlayers: 10000
 };

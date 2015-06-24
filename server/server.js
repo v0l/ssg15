@@ -12,7 +12,7 @@ var WebSocketServer = require("ws").Server;
 var Room = require('./room');
 var Player = require('./player');
 var ssg15 = require('./globals');
-var comm = Protobuf(fs.readFileSync(ssg15.Config.PublicDir+'/cfg/messages.proto'));
+var comm = Protobuf(fs.readFileSync(ssg15.Config.PublicDir+'/TowerAttack/cfg/messages.proto'));
 var app = express();
 
 app.use(express.static(ssg15.Config.PublicDir));
@@ -45,10 +45,10 @@ ws.on('connection', function(ws) {
 	ws.session = {
 		id: UUID.v4() //TODO: should replace this with cookie var set by login
 	};
-	
+
 	var npl = new Player(ws.session.id);
 	ssg15.Players[ws.session.id] = npl;
-	
+
 	ws.on('message', function (data, flags) {
 		if(flags.binary)
 		{
@@ -63,7 +63,7 @@ ws.on('connection', function(ws) {
 			}
 		}
 	});
-	
+
 	ws.on('close', function(code, msg) {
 		//TODO: remove player from players array
 	});

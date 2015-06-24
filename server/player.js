@@ -3,21 +3,21 @@ var Redis = require('ioredis');
 var Protobuf = require('protocol-buffers');
 
 var ssg15 = require('./globals');
-var comm = Protobuf(fs.readFileSync(ssg15.Config.PublicDir+'/cfg/messages.proto'));
+var comm = Protobuf(fs.readFileSync(ssg15.Config.PublicDir+'/Towerattack/cfg/messages.proto'));
 
 module.exports = function (id) {
 	this._redis = new Redis();
 	this.name = 'Unknown';
 	this.id = id;
 	this._redisKey = 'player:'+id;
-	
+
 	this._data = {
 		roomId: 0,
 		data: {
 			hp: 1000,
 			current_lane: 0,
 			target: 0,
-			time_died: 0, 
+			time_died: 0,
 			gold: 0,
 			active_abilities_bitfield: 0,
 			active_abilities: [],
@@ -33,14 +33,14 @@ module.exports = function (id) {
 			dps: 10
 		}
 	};
-	
+
 	var instance = this;
-	
+
 	this.Flush = function()
 	{
 		instance._redis.set(instance._redisKey, instance._data);
 	};
-	
+
 	//check if player exists in redis
 	this._redis.get(this._redisKey, function(err, res)
 	{
@@ -64,13 +64,13 @@ module.exports = function (id) {
 			console.log(err);
 		}
 	});
-	
+
 	this.JoinRoom = function(room)
 	{
 		if(instance._data.roomId == 0)
 		{
 			var rm = ssg15.Rooms[room];
-			
+
 			//check there is room... in the room
 			if(rm._players.length < ssg15.Config.MaxPlayers)
 			{
@@ -84,7 +84,7 @@ module.exports = function (id) {
 			return { msg: 'You are already in a room!', ok: false };
 		}
 	};
-	
+
 	this.HandleMessage = function(msg, cb)
 	{
 		switch(msg.type){
@@ -97,9 +97,9 @@ module.exports = function (id) {
 					GetGameData_Response: {
 						game_data: null,
 						stats: null
-					}						
+					}
 				};
-				
+
 				if(rm !== undefined)
 				{
 					rsp_d.GetGameData_Response.game_data = rm._data;
@@ -109,7 +109,7 @@ module.exports = function (id) {
 				{
 					console.log('Room '+instance._data.roomId+' does not exist');
 				}
-				
+
 				var rsp = comm.CTowerAttack_Response.encode(rsp_d);
 				cb(rsp);
 				break;
@@ -121,10 +121,10 @@ module.exports = function (id) {
 					type: msg.type,
 					GetPlayerNames_Response: [ ]
 				};
-				
+
 				for(var x=0;x<ssg15.Players.length;x++){
 					var p = ssg15.Players[x];
-					
+
 					if(p._roomId == instance._data.roomId){
 						rsp_d.GetPlayerNames_Response.push({
 							accountid: instance.id,
@@ -132,7 +132,7 @@ module.exports = function (id) {
 						});
 					}
 				}
-				
+
 				var rsp = comm.CTowerAttack_Response.encode(rsp_d);
 				cb(rsp);
 				break;
@@ -160,8 +160,8 @@ module.exports = function (id) {
 						instance._data.data.current_lane = ab.new_lane;
 					}
 				}
-				
-				//send player data back 
+
+				//send player data back
 				var rsp_d = {
 					id: msg.id,
 					type: msg.type,
@@ -176,18 +176,18 @@ module.exports = function (id) {
 			}
 			case 4:{
 				//choose upgrade
-				
+
 				break;
 			}
 			case 5:{
 				//get tuning data
-				
+
 				break;
 			}
 			case 6:{
 				//get daily stats rollup
-				
-				break;	
+
+				break;
 			}
 			case 7:{
 				//handle game event
@@ -195,12 +195,12 @@ module.exports = function (id) {
 			}
 			case 8:{
 				//use badge points
-				
+
 				break;
 			}
 			case 9:{
 				//quit game
-				
+
 				break;
 			}
 			default:{
