@@ -84,7 +84,7 @@ module.exports = function (id) {
 				{
 					//room exists, copy res to this._data
 					console.log('Loading room data...('+instance._data.roomId+')');
-					console.log(res);
+					//console.log(res);
 					instance._data = JSON.parse(res);
 				}
 				cb();
@@ -190,7 +190,7 @@ module.exports = function (id) {
 
 	this.Tick = function(deltaTime) 
 	{
-
+		console.log("Room Tick");
 		instance._Flush();
 	};
 };

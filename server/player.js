@@ -57,7 +57,7 @@ module.exports = function (id) {
 				{
 					//player exists, copy res to this._data
 					console.log('Loading player data...('+instance.id+')');
-					console.log(res);
+					//console.log(res);
 					instance._data = JSON.parse(res);
 				}else{
 					console.log('Player load failed: ' + instance.id);
