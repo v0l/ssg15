@@ -89,6 +89,7 @@ app.get('/auth/steam/return', passport.authenticate('steam', { failureRedirect: 
 	//check player exists in redis
 	var pl = new Player(req.user.id);
 	pl.Load(function () {
+		console.dir(req.user);
 		pl._data.displayName = req.user.displayName;
 		pl._data.steamId = req.user.id;
 		pl.Flush();
