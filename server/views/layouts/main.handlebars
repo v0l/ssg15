@@ -11,10 +11,12 @@
     <body class="box-sizing">
         <div id="header">
             <span id="titleText">Steam Summer Monster Game Emu</span>
+            {{#if user.displayName}}
             <div id="userDetails">
                 <span>{{user.displayName}}</span>
                 <img src="{{user._json.avatarmedium}}">
             </div>
+            {{/if}}
         </div>
 
     	<div id="wrapper" class="content box-sizing">

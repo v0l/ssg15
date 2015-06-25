@@ -10,6 +10,7 @@ var exphbs = require('express-handlebars');
 var WebSocketServer = require("ws").Server;
 var passport = require('passport');
 var session = require('express-session');
+var RedisStore = require('connect-redis')(session);
 
 var Room = require('./room');
 var Player = require('./player');
@@ -42,7 +43,7 @@ passport.use(new SteamStrategy(ss_opt, function(id, pro, done) {
 app.use(expressGlobals.globals);
 app.use(express.static(ssg15.Config.PublicDir));
 
-app.use(session({ genid: function(req) {  return UUID.v4() }, secret: 'PRIASE-EMU-SENPAI' }));
+app.use(session({ genid: function(req) {  return UUID.v4() }, store: new RedisStore, secret: 'PRIASE-EMU-SENPAI' }));
 app.use(passport.initialize());
 app.use(passport.session());
 
@@ -89,7 +90,6 @@ app.get('/auth/steam/return', passport.authenticate('steam', { failureRedirect: 
 	//check player exists in redis
 	var pl = new Player(req.user.id);
 	pl.Load(function () {
-		console.dir(req.user);
 		pl._data.displayName = req.user.displayName;
 		pl._data.steamId = req.user.id;
 		pl.Flush();
