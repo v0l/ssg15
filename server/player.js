@@ -131,25 +131,25 @@ module.exports = function (id) {
 			}
 			case 1:{
 				//get player names
-				var rsp_d = {
-					id: msg.id,
-					type: msg.type,
-					GetPlayerNames_Response: [ ]
-				};
-
-				for(var x=0;x<ssg15.Players.length;x++){
-					var p = ssg15.Players[x];
-
-					if(p._roomId == instance._data.roomId){
-						rsp_d.GetPlayerNames_Response.push({
-							accountid: instance._data.steamId,
-							name: instance._data.displayName
-						});
-					}
-				}
-
-				var rsp = comm.CTowerAttack_Response.encode(rsp_d);
-				cb(rsp);
+				var rm = new Room(instance._data.roomId);
+				rm.Load(function(){
+					rm.GetPlayerListFull(function(list){
+						var rsp_d = {
+							id: msg.id,
+							type: msg.type,
+							GetPlayerNames_Response: [ ]
+						};
+						
+						for(var x=0;x<list.playerlist.length;x++){
+							var pl = list.playerlist[x];
+							
+							rsp_d.GetPlayerNames_Response[rsp_d.GetPlayerNames_Response.length] = { accountid: pl.steamId, name: pl.displayName };
+						}
+						
+						var rsp = comm.CTowerAttack_Response.encode(rsp_d);
+						cb(rsp);
+					});
+				});
 				break;
 			}
 			case 2:{
@@ -177,16 +177,16 @@ module.exports = function (id) {
 				}
 
 				//send player data back
-				var rsp_d = {
-					id: msg.id,
-					type: msg.type,
-					UseAbilities_Response:{
-						player_data: instance._data.data,
-						tech_tree: instance._data.tech
-					}
-				};
-				var rsp = comm.CTowerAttack_Response.encode(rsp_d);
 				instance.Flush(function() {
+					var rsp_d = {
+						id: msg.id,
+						type: msg.type,
+						UseAbilities_Response:{
+							player_data: instance._data.data,
+							tech_tree: instance._data.tech
+						}
+					};
+					var rsp = comm.CTowerAttack_Response.encode(rsp_d);
 					cb(rsp);
 				});
 				break;

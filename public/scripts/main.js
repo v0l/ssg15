@@ -20,7 +20,7 @@ function ShowGames(div){
 		var roomlist = JSON.parse(data);
 		for(var x=0;x<roomlist.roomlist.length;x++){
 			var room = roomlist.roomlist[x];
-			var row = "<tr><td>"+ room.id +"</td><td>" + room.data.level + "</td><td>" + room.stats.num_active_players + "/" + room.stats.num_players + "</td><td>" + s[room.data.status] + "</td><td><input type=\"button\" onclick=\"JoinGame(" + room.id + ")\" value=\"Join Game\"/></td></tr>"; 
+			var row = "<tr><td>"+ room.roomId +"</td><td>" + room.data.level + "</td><td>" + room.stats.num_active_players + "/" + room.stats.num_players + "</td><td>" + s[room.data.status] + "</td><td><input type=\"button\" onclick=\"JoinGame(" + room.id + ")\" value=\"Join Game\"/></td></tr>"; 
 			tbody += row;
 		}
 		e.innerHTML = tbody;
