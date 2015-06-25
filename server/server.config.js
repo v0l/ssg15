@@ -2,7 +2,7 @@ module.exports = {
 	Env: 'dev',
 	PublicDir: '../public/',
 	AppDir: '../public/app/',
-	Host: 'localhost',
+	Host: 'uat.ssg15.0x.tf',
 	Port: 8080,
 	Secure: false,
 		
