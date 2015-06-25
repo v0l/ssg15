@@ -76,19 +76,20 @@ module.exports = function (id) {
 		if(instance._data.roomId == 0)
 		{
 			var rm = new Room(room);
-
-			//check there is room... in the room
-			if(rm._data.players.length < ssg15.Config.MaxPlayers)
-			{
-				//yay! - join le room
-				rm.JoinPlayerToRoom(instance, function(r){ 
-					cb(r);
-				});
-			}
-			else
-			{
-				cb({ msg: 'This room is full', ok: false });
-			}
+			rm.Load(function() {
+				//check there is room... in the room
+				if(rm._data.players.length < ssg15.Config.MaxPlayers)
+				{
+					//yay! - join le room
+					rm.JoinPlayerToRoom(instance, function(r){ 
+						cb(r);
+					});
+				}
+				else
+				{
+					cb({ msg: 'This room is full', ok: false });
+				}
+			});
 		}
 		else
 		{
