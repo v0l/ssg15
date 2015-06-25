@@ -2,17 +2,19 @@ var fs = require('fs');
 var Redis = require('ioredis');
 var Protobuf = require('protocol-buffers');
 
+var Room = require('./room');
 var ssg15 = require('./globals');
-var comm = Protobuf(fs.readFileSync(ssg15.Config.PublicDir+'/Towerattack/cfg/messages.proto'));
+var comm = Protobuf(fs.readFileSync(ssg15.Config.PublicDir+'cfg/messages.proto'));
 
 module.exports = function (id) {
 	this._redis = new Redis();
-	this.name = 'Unknown';
 	this.id = id;
 	this._redisKey = 'player:'+id;
 
 	this._data = {
 		roomId: 0,
+		steamId: null,
+		displayName: null,
 		data: {
 			hp: 1000,
 			current_lane: 0,
@@ -40,6 +42,11 @@ module.exports = function (id) {
 	{
 		instance._redis.set(instance._redisKey, instance._data);
 	};
+	
+	this.FlushPipeline = function(p)
+	{
+		p.set(instance._redisKey, instance._data);
+	};
 
 	//check if player exists in redis
 	this._redis.get(this._redisKey, function(err, res)
@@ -55,8 +62,8 @@ module.exports = function (id) {
 			else
 			{
 				//this is a new player, flush the empty player data
-				console.log('New player created! ('+instance.id+')');
-				instance.Flush();
+				//console.log('New player created! ('+instance.id+')');
+				//instance.Flush();
 			}
 		}
 		else
@@ -65,23 +72,29 @@ module.exports = function (id) {
 		}
 	});
 
-	this.JoinRoom = function(room)
+	this.JoinRoom = function(room,cb)
 	{
 		if(instance._data.roomId == 0)
 		{
-			var rm = ssg15.Rooms[room];
+			var rm = new Room(room);
 
 			//check there is room... in the room
-			if(rm._players.length < ssg15.Config.MaxPlayers)
+			if(rm._data.players.length < ssg15.Config.MaxPlayers)
 			{
 				//yay! - join le room
-				return rm.JoinPlayerToRoom(instance);
+				rm.JoinPlayerToRoom(instance, function(r){ 
+					cb(r);
+				});
+			}
+			else
+			{
+				cb({ msg: 'This room is full', ok: false });
 			}
 		}
 		else
 		{
 			//player is already in a room
-			return { msg: 'You are already in a room!', ok: false };
+			cb({ msg: 'You are already in a room!', ok: false });
 		}
 	};
 
@@ -127,8 +140,8 @@ module.exports = function (id) {
 
 					if(p._roomId == instance._data.roomId){
 						rsp_d.GetPlayerNames_Response.push({
-							accountid: instance.id,
-							name: instance.name
+							accountid: instance._data.steamId,
+							name: instance._data.displayName
 						});
 					}
 				}

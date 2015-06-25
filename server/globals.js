@@ -1,6 +1,3 @@
 module.exports = {
-	Config: require('./server.config'),
-
-	Rooms: [],
-	Players: []
+	Config: require('./server.config')
 };

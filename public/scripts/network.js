@@ -60,7 +60,6 @@ CServerInterface.prototype.Connect = function( callback )
 					if(msg.GetGameData_Response.data == undefined)
 					{
 						//something went wrong? redirect to login/lobby page (you are not in a game or the room does not exist
-						alert('you are not in a game redirecting to lobby');
 						window.location.href = '/lobby';
 					}
 					cb(msg.GetGameData_Response);

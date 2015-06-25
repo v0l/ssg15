@@ -1,5 +1,9 @@
-var ssg15 = require('./globals');
+var fs = require('fs');
 var Redis = require('ioredis');
+var Protobuf = require('protocol-buffers');
+
+var ssg15 = require('./globals');
+var comm = Protobuf(fs.readFileSync(ssg15.Config.PublicDir+'cfg/messages.proto'));
 
 module.exports = function (id) {
 	this._redis = new Redis();
@@ -63,7 +67,12 @@ module.exports = function (id) {
 	
 	this.Flush = function()
 	{
-		instance._redis.set(instance._redisKey, instance._data);
+		instance._redis.set(instance._redisKey, JSON.stringify(instance._data));
+	};
+	
+	this.FlushPipeline = function(p)
+	{
+		instance.Flush();
 	};
 	
 	//check if the room exists
@@ -75,13 +84,14 @@ module.exports = function (id) {
 			{
 				//room exists, copy res to this._data
 				console.log('Loading room data...('+instance._roomId+')');
-				instance._data = res;
+				console.log(res);
+				instance._data = JSON.parse(res);
 			}
 			else
 			{
 				//this is a new room, flush the empty game data
-				console.log('New room created! ('+instance._roomId+')');
-				instance.Flush();
+				//console.log('New room created! ('+instance._roomId+')');
+				//instance.Flush();
 			}
 		}
 		else
@@ -90,18 +100,96 @@ module.exports = function (id) {
 		}
 	});
 
-	this.JoinPlayerToRoom = function(player)
+	this.JoinPlayerToRoom = function(player, cb)
 	{
 		if(instance._roomId !== 0)
 		{
-			//am i real?
-			if(ssg15.Rooms[instance._roomId] !== undefined)
+			if(instance._data.data.status == comm.EMiniGameStatus.k_EMiniGameStatus_Invalid){
+				instance._data.data.status = comm.EMiniGameStatus.k_EMiniGameStatus_WaitingForPlayers;
+				instance._data.data.level = 1;
+			}
+			instance._data.players.push(player.id);
+			
+			var p = instance._redis.pipeline();
+			
+			instance.FlushPipeline(p);
+			player.FlushPipeline(p);
+			
+			p.exec(function(err, results) {
+				console.log(results);
+				var rooms = results[0];
+				var pls = results[1];
+				
+				if(rooms[0]){
+					cb({ msg: '[ERROR] Room flush failed, data is corrupted', ok: false });
+				}
+				if(pls[0]){
+					cb({ msg: '[ERROR] Player flush failed, data is corrupted', ok: false })
+				}
+				if(!rooms[0] && !pls[0])
+				{
+					cb({msg: null, ok: true });
+				}
+				
+			});
+		}
+		else
+		{
+			cb({ msg: 'You cant join a null room', ok: false });
+		}
+	};
+	
+	this.GetPlayerListBasic = function()
+	{
+		return instance._data.players;
+	};
+	
+	this.GetPlayerListFull = function (cb)
+	{
+		var rm = this.GetPlayerListBasic();
+		var out = {
+			timestamp: new Date().getTime(),
+			info: instance._data,
+			playerlist: []
+		};
+		
+		var cmds = [];
+		
+		for(var x=0;x<rm.length;x++)
+		{
+			cmds.push(['get', 'player:'+rm[x]]);
+		}
+		
+		if(cmds.length > 0)
+		{
+			instance._redis.pipeline(cmds).exec(function(err, result){
+				for(var x=0;x<result.length;x++)
+				{
+					var rm_id = result[x];
+					
+					if(!rm[0]){
+						rds.get(rm_id, function(er, res) {
+							if(!er)
+							{
+								out.playerlist.push(res);
+							}
+						});
+					}
+				}
+				
+				if(cb !== undefined)
+				{
+					cb(out);
+				}
+			});	
+		}
+		else
+		{
+			if(cb !== undefined)
 			{
-				instance._data.players.push(player.id);
-				return { msg: null, ok: true };
+				cb(out);
 			}
 		}
-		return { msg: 'You cant join a null room', ok: false };
 	};
 	
 	this.HandlePlayerMessage = function(playerData, Message) 
@@ -116,3 +204,40 @@ module.exports = function (id) {
 		instance._Flush();
 	};
 };
+module.exports.GetAll = function(cb){
+	var rds = new Redis();
+	
+	var out = {
+		timestamp: new Date().getTime(),
+		roomlist: []
+	};
+	
+	rds.pipeline([
+		['KEYS','room:*']
+	]).exec(function(err, result){
+		if(!err)
+		{
+			for(var x=0;x<result[0].length;x++)
+			{
+				var rm_id = result[0][x];
+				console.log(rm_id);
+				rds.get(rm_id, function(er, res) {
+					if(!er)
+					{
+						out.roomlist.push(res);
+					}
+				});
+			}
+			
+			if(cb !== undefined)
+			{
+				cb(out);
+			}
+		}
+		else
+		{
+			console.log('Failed to get room list: '+err);
+		}
+	});
+};
+
