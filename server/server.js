@@ -95,6 +95,14 @@ app.get('/auth/steam/return', passport.authenticate('steam', { failureRedirect: 
 		pl.Flush();
 		
 		res.cookie('st.id',req.user.id, { httpOnly: true });
+
+		// Add some info to the session
+		if (!req.session.user) {
+			req.session.user = {};
+		}
+		req.session.user.displayName = req.user.displayName;
+		req.session.user._json = req.user._json;
+		
 		res.redirect('/lobby');
 	});
 });

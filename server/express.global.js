@@ -5,6 +5,8 @@
 
 exports.globals = function(req, res, next) {
 	res.locals.req = req;
+	res.locals.session = req.session;
+
     res.locals.global = {
     	test: "Test"
     };
