@@ -143,6 +143,7 @@ module.exports = function (id) {
 	
 	this.GetPlayerListFull = function (cb)
 	{
+		var rm = instance.GetPlayerListBasic();
 		var cmds = [];
 		
 		for(var x=0;x<rm.length;x++)
@@ -153,7 +154,7 @@ module.exports = function (id) {
 		if(cmds.length > 0)
 		{
 			instance._redis.pipeline(cmds).exec(function(err, result){
-				var rm = instance.GetPlayerListBasic();
+
 				var out = {
 					timestamp: new Date().getTime(),
 					info: instance._data,
