@@ -28,11 +28,13 @@ passport.deserializeUser(function(obj, done) {
   done(null, obj);
 });
 
-passport.use(new SteamStrategy({
+var ss_opt = {
 	returnURL: ssg15.Config.getUrl()+'auth/steam/return',
 	realm: ssg15.Config.getUrl(),
 	apiKey: ssg15.Config.SteamAPIKey
-}, function(id, pro, done) {
+};
+
+passport.use(new SteamStrategy(ss_opt, function(id, pro, done) {
 	process.nextTick(function() { pro.identifier = id; return done(null, pro); });
 }));
 
@@ -52,11 +54,17 @@ var routes = {
 };
 
 app.get('/',ensureAuthenticated, function(req, res) {
-	res.redirect('/Towerattack/');
+	res.redirect('/Towerattack');
 });
 
 app.get('/TowerAttack', ensureAuthenticated, function(req, res) {
-	res.render('game', { user: req.user });
+	var pl = new Player(req.user.steamId);
+	pl.Load(function() {
+		var rm = new Room(pl._data.roomId);
+		rm.Load(function() {
+			res.render('game', { user: req.user, room: rm, player: pl });
+		});
+	});
 });
 
 app.get('/login', function(req, res) {
@@ -64,7 +72,13 @@ app.get('/login', function(req, res) {
 });
 
 app.get('/lobby', ensureAuthenticated, function(req, res) {
-	res.render('lobby', { user: req.user });
+	var pl = new Player(req.user.id);
+	pl.Load(function() {
+		var rm = new Room(pl._data.roomId);
+		rm.Load(function() {
+			res.render('lobby', { user: req.user, room: rm, player: pl });
+		});
+	});
 });
 
 app.get('/auth/steam', passport.authenticate('steam', { failureRedirect: '/login#failed' }), function(req, res) {
@@ -74,15 +88,14 @@ app.get('/auth/steam', passport.authenticate('steam', { failureRedirect: '/login
 app.get('/auth/steam/return', passport.authenticate('steam', { failureRedirect: '/login#failed' }), function(req, res) {
 	//check player exists in redis
 	var pl = new Player(req.user.id);
-	console.log(req.user);
-	if(pl._data.steamId == undefined)
-	{
-		//this is a new player
+	pl.Load(function () {
 		pl._data.displayName = req.user.displayName;
 		pl._data.steamId = req.user.id;
 		pl.Flush();
-	}
-    res.redirect('/lobby');
+		
+		res.cookie('st.id',req.user.id, { httpOnly: true });
+		res.redirect('/lobby');
+	});
 });
 
 app.get('/logout', function(req, res) {
@@ -98,20 +111,23 @@ app.get('/data/rooms', function(req, res){
 
 app.get('/data/joinroom/:id',ensureAuthenticated, function(req, res) {
 	var pl = new Player(req.user.id);
-	
-	pl.JoinRoom(req.params.id, function(r) {
-		if(!r.ok)
-		{
-			console.log(r.msg);
-		}
-		res.json(r);
+	pl.Load(function() {
+		pl.JoinRoom(req.params.id, function(r) {
+			if(!r.ok)
+			{
+				console.log(r.msg);
+			}
+			res.json(r);
+		});
 	});
 });
 
 app.get('/data/:room/players', function(req, res){
 	var rm = new Room(req.params.room);
-	rm.GetPlayerListFull(function(data){
-		res.json(data);
+	rm.Load(function() {
+		rm.GetPlayerListFull(function(data){
+			res.json(data);
+		});
 	});
 });
 
@@ -134,18 +150,17 @@ var ws = new WebSocketServer({
 });
 
 ws.on('connection', function(ws) {
-	var sid;
-	console.log(ws.upgradeReq);
-	if(ws.upgradeReq.cookie !== undefined)
+	var sid = 0;
+	if(ws.upgradeReq.headers.cookie !== undefined)
 	{ 
-		var cookies = ws.upgradeReq.cookie.split(';');
+		var cookies = ws.upgradeReq.headers.cookie.split(';');
 		for(var x=0;x<cookies.length;x++)
 		{
 			var cookie = cookies[x];
 		
 			var csplit = cookie.split('=');
 			
-			if(csplit[0].indexOf("ssg.session") >= 0) //TODO: probably not a good idea better to trim leading spaces or client can send fake session cookies ie. fake.ssg.session='token'
+			if(csplit[0].indexOf("st.id") >= 0) //TODO: probably not a good idea better to trim leading spaces or client can send fake session cookies ie. fake.ssg.session='token'
 			{
 				sid = csplit[1];
 			}
@@ -154,15 +169,17 @@ ws.on('connection', function(ws) {
 	ws.session = {
 		id: sid
 	};
-
+	
 	ws.on('message', function (data, flags) {
 		if(flags.binary)
 		{
 			var pl = new Player(ws.session.id);
-			var msg = comm.CTowerAttack_Request.decode(data);
+			pl.Load(function() {
+				var msg = comm.CTowerAttack_Request.decode(data);
 
-			pl.HandleMessage(msg, function(rsp){
-				ws.send(rsp, { binary: true });
+				pl.HandleMessage(msg, function(rsp){
+					ws.send(rsp, { binary: true });
+				});
 			});
 		}
 	});

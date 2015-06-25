@@ -72,34 +72,30 @@ module.exports = function (id) {
 	
 	this.FlushPipeline = function(p)
 	{
-		instance.Flush();
+		p.set(instance._redisKey, JSON.stringify(instance._data));
 	};
 	
-	//check if the room exists
-	this._redis.get(this._redisKey, function(err, res)
-	{
-		if(!err)
+	this.Load = function(cb){
+		this._redis.get(this._redisKey, function(err, res)
 		{
-			if(res !== undefined && res !== null)
+			if(!err)
 			{
-				//room exists, copy res to this._data
-				console.log('Loading room data...('+instance._roomId+')');
-				console.log(res);
-				instance._data = JSON.parse(res);
+				if(res !== undefined && res !== null)
+				{
+					//room exists, copy res to this._data
+					console.log('Loading room data...('+instance._roomId+')');
+					console.log(res);
+					instance._data = JSON.parse(res);
+				}
+				cb();
 			}
 			else
 			{
-				//this is a new room, flush the empty game data
-				//console.log('New room created! ('+instance._roomId+')');
-				//instance.Flush();
+				console.log(err);
 			}
-		}
-		else
-		{
-			console.log(err);
-		}
-	});
-
+		});
+	};
+	
 	this.JoinPlayerToRoom = function(player, cb)
 	{
 		if(instance._roomId !== 0)
@@ -108,7 +104,9 @@ module.exports = function (id) {
 				instance._data.data.status = comm.EMiniGameStatus.k_EMiniGameStatus_WaitingForPlayers;
 				instance._data.data.level = 1;
 			}
+			player._data.roomId = instance._roomId;
 			instance._data.players.push(player.id);
+			instance._data.stats.num_players = instance._data.players.length;
 			
 			var p = instance._redis.pipeline();
 			
@@ -116,7 +114,6 @@ module.exports = function (id) {
 			player.FlushPipeline(p);
 			
 			p.exec(function(err, results) {
-				console.log(results);
 				var rooms = results[0];
 				var pls = results[1];
 				
@@ -205,28 +202,23 @@ module.exports = function (id) {
 	};
 };
 module.exports.GetAll = function(cb){
-	var rds = new Redis();
-	
-	var out = {
-		timestamp: new Date().getTime(),
-		roomlist: []
-	};
-	
-	rds.pipeline([
-		['KEYS','room:*']
-	]).exec(function(err, result){
+	var redis = new Redis();
+
+	redis.keys('room*', function(err, result){
 		if(!err)
 		{
-			for(var x=0;x<result[0].length;x++)
+			var out = {
+				timestamp: new Date().getTime(),
+				roomlist: []
+			};
+			
+			for(var x=0;x<result.length;x++)
 			{
-				var rm_id = result[0][x];
-				console.log(rm_id);
-				rds.get(rm_id, function(er, res) {
-					if(!er)
-					{
-						out.roomlist.push(res);
-					}
-				});
+				var rm_id = result[x].split(':')[1];
+				var rm = new module.exports(rm_id);
+				var data = rm._data;
+				data.id = rm_id;
+				out.roomlist[out.roomlist.length] = data;
 			}
 			
 			if(cb !== undefined)

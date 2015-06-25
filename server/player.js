@@ -40,37 +40,36 @@ module.exports = function (id) {
 
 	this.Flush = function()
 	{
-		instance._redis.set(instance._redisKey, instance._data);
+		instance._redis.set(instance._redisKey, JSON.stringify(instance._data));
 	};
 	
 	this.FlushPipeline = function(p)
 	{
-		p.set(instance._redisKey, instance._data);
+		p.set(instance._redisKey, JSON.stringify(instance._data));
 	};
 
-	//check if player exists in redis
-	this._redis.get(this._redisKey, function(err, res)
-	{
-		if(!err)
+	this.Load = function(cb){
+		this._redis.get(this._redisKey, function(err, res)
 		{
-			if(res !== undefined && res !== null)
+			if(!err)
 			{
-				//player exists, copy res to this._data
-				console.log('Loading player data...('+instance.id+')');
-				instance._data = res;
+				if(res !== undefined && res !== null)
+				{
+					//player exists, copy res to this._data
+					console.log('Loading player data...('+instance.id+')');
+					console.log(res);
+					instance._data = JSON.parse(res);
+				}else{
+					console.log('Player load failed: ' + instance.id);
+				}
+				cb();
 			}
 			else
 			{
-				//this is a new player, flush the empty player data
-				//console.log('New player created! ('+instance.id+')');
-				//instance.Flush();
+				console.log(err);
 			}
-		}
-		else
-		{
-			console.log(err);
-		}
-	});
+		});
+	};
 
 	this.JoinRoom = function(room,cb)
 	{
@@ -103,28 +102,30 @@ module.exports = function (id) {
 		switch(msg.type){
 			case 0:{
 				//get game data
-				var rm = ssg15.Rooms[instance._data.roomId];
-				var rsp_d = {
-					id: msg.id,
-					type: msg.type,
-					GetGameData_Response: {
-						game_data: null,
-						stats: null
+				var rm = new Room(instance._data.roomId);
+				rm.Load(function() {
+					var rsp_d = {
+						id: msg.id,
+						type: msg.type,
+						GetGameData_Response: {
+							game_data: null,
+							stats: null
+						}
+					};
+
+					if(rm !== undefined)
+					{
+						rsp_d.GetGameData_Response.game_data = rm._data.data;
+						rsp_d.GetGameData_Response.stats = rm._data.stats;
 					}
-				};
+					else
+					{
+						console.log('Room '+instance._data.roomId+' does not exist');
+					}
 
-				if(rm !== undefined)
-				{
-					rsp_d.GetGameData_Response.game_data = rm._data;
-					rsp_d.GetGameData_Response.stats = rm._stats;
-				}
-				else
-				{
-					console.log('Room '+instance._data.roomId+' does not exist');
-				}
-
-				var rsp = comm.CTowerAttack_Response.encode(rsp_d);
-				cb(rsp);
+					var rsp = comm.CTowerAttack_Response.encode(rsp_d);
+					cb(rsp);
+				});
 				break;
 			}
 			case 1:{
@@ -184,7 +185,9 @@ module.exports = function (id) {
 					}
 				};
 				var rsp = comm.CTowerAttack_Response.encode(rsp_d);
-				cb(rsp);
+				instance.Flush(function() {
+					cb(rsp);
+				});
 				break;
 			}
 			case 4:{

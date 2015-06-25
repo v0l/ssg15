@@ -2,3 +2,18 @@ Lobby goes here :)
 
 <p>ID: {{user.id}}</p>
 <p>Name: {{user.displayName}}</p>
+<p>Current Game: {{player._data.roomId}}</p>
+
+<table style="width:100%;border-collapse: collapse;">
+	<thead>
+		<tr style="background-color: #888"><th>ID</th><th>Level</th><th>Active/Total Players</th><td>State</th><th></th></tr>
+	</thead>
+	
+	<tbody id="rooms" style="text-allign: center;">
+	
+	</tbody>
+</table>
+
+<script>
+	ShowGames("rooms");
+</script>

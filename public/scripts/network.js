@@ -57,11 +57,6 @@ CServerInterface.prototype.Connect = function( callback )
 				//get game data
 				var cb = instance.m_ws_cbq[msg.id];
 				if(cb != undefined){
-					if(msg.GetGameData_Response.data == undefined)
-					{
-						//something went wrong? redirect to login/lobby page (you are not in a game or the room does not exist
-						window.location.href = '/lobby';
-					}
 					cb(msg.GetGameData_Response);
 				}
 				break;
