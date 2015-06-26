@@ -38,3 +38,8 @@ function JoinGame(id){
 		}
 	});
 }
+
+function JoinNew(){
+	var i = document.getElementById("roomId");
+	JoinGame(i.value);
+}

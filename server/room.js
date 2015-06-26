@@ -1,6 +1,8 @@
 var fs = require('fs');
 var Redis = require('ioredis');
 var Protobuf = require('protocol-buffers');
+var UUID = require('UUID');
+var async = require('async');
 
 var ssg15 = require('./globals');
 var comm = Protobuf(fs.readFileSync(ssg15.Config.PublicDir+'cfg/messages.proto'));
@@ -14,6 +16,7 @@ module.exports = function (id) {
 		roomId: id,
 		data: {
 			level: 0,
+			enemyIndex: 0,
 			lanes: [
 				{
 					enemies: [], 
@@ -64,7 +67,6 @@ module.exports = function (id) {
 	};
 
 	var instance = this;
-	var entityIdCounter = 0; // Store with the room data?
 	
 	this.Flush = function()
 	{
@@ -77,17 +79,13 @@ module.exports = function (id) {
 	};
 	
 	this.Load = function(cb){
-		this._redis.get(this._redisKey(), function(err, res)
+		instance._redis.get(instance._redisKey(), function(err, res)
 		{
 			if(!err)
 			{
 				if(res !== undefined && res !== null)
 				{
-					//room exists, copy res to this._data
-					console.log('Loading room data...('+instance._data.roomId+')');
-					//console.log(res);
 					instance._data = JSON.parse(res);
-					instance.SpawnEnemy(0, 1); // Temp
 				}
 				cb();
 			}
@@ -186,19 +184,19 @@ module.exports = function (id) {
 	
 	this.HandlePlayerMessage = function(playerData, Message) 
 	{
-		
-		instance._Flush();
+		instance.Flush();
 	};
 
-	this.Tick = function(deltaTime) 
+	this.Tick = function() 
 	{
-		console.log("Room Tick");
-		instance._Flush();
+		//console.log("Room Tick");
+		//instance.Flush();
 	};
 
 	// Spawn functions
 	this.GetNewEntityID = function() {
-		return entityIdCounter++;
+		instance._data.enemyIndex++;
+		return instance._data.enemyIndex;
 	}
 
 	this.SpawnLane = function (lane) {
@@ -209,23 +207,60 @@ module.exports = function (id) {
 
 		} 
 		else {
-
+			//addspawner and 3 random types
+			async.parallel([
+				function() { instance.SpawnEnemy(0, comm.ETowerAttackEnemyType.k_ETowerAttackEnemyType_Tower); },
+				function() { instance.SpawnEnemy(1, comm.ETowerAttackEnemyType.k_ETowerAttackEnemyType_Tower); },
+				function() { instance.SpawnEnemy(2, comm.ETowerAttackEnemyType.k_ETowerAttackEnemyType_Tower); }
+			]);
 		}
 	};
 
+	this.NextLevel = function(cb) {
+		//clear lanes
+		var lane1 = instance._data.data.lanes[0];
+		var lane2 = instance._data.data.lanes[1];
+		var lane3 = instance._data.data.lanes[2];
+		
+		lane1.dps = lane2.dps = lane3.dps = 0;
+		lane1.enemies = [];
+		lane2.enemies = [];
+		lane3.enemies = [];
+
+		lane1.active_player_abilities = [];
+		lane2.active_player_abilities = [];
+		lane3.active_player_abilities = [];
+
+		instance._data.data.level++;
+		
+		instance.SpawnLane(0);
+		instance.SpawnLane(1);
+		instance.SpawnLane(2);
+
+		instance.Flush();
+	};
+	
 	this.SpawnEnemy = function (lane, enemy) {
 		var enemyData = {
 			id: instance.GetNewEntityID(),
-			type: comm.ETowerAttackEnemyType.k_ETowerAttackEnemyType_Mob,
+			type: enemy,
 			hp: 120000,
 			max_hp: 1200000,
 			dps: 10,
 			timer: 0,
 			gold: 999
 		};
-
-		instance._data.data.lanes[lane].enemies.push(enemyData);
-		console.log("Spawned Enemy");
+		
+		var e = instance._data.data.lanes[lane];
+		instance._data.data.lanes[lane].element = comm.ETowerAttackElement.k_ETowerAttackElement_Fire;
+		
+		if(instance._data.data.lanes[lane].enemies.length >= 3){
+			instance._data.data.lanes[lane].enemies[instance._data.data.lanes[lane].enemies.length] = enemyData;
+			console.log("Spawned Enemy");
+		}else{
+			console.log(instance._data.data.lanes[lane].enemies[0]);
+			console.log("this lane is already full of mobs");
+		}
 	};
 };
 module.exports.GetAll = function(cb){

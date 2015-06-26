@@ -1,18 +1,30 @@
 <div id="wrapper" class="content box-sizing">
-	Lobby goes here :)
-	<br/>
-	<img src="{{user._json.avatarmedium}}"/>
-	<br/>
-	<p>ID: {{user.id}}</p>
-	<p>Name: {{user.displayName}}</p>
-	<p>Current Game: {{player._data.roomId}}</p>
-
-	<table style="width:100%;border-collapse: collapse;">
+	<h3>Current room info</h3>
+	
+	{{#if room._data.data.level}}
+		<div class="currentRoomInfo">
+			<div class="info"><div class="header">Level</div><br/>
+				{{room._data.data.level}}
+			</div>
+			<div class="info"><div class="header">Gold</div><br/>
+				{{player._data.data.gold}}
+			</div>
+		</div>
+	{{else}}
+		<small>You are not in a room!</small>
+	{{/if}}
+	
+	<h3>Join or Create Room</h3>
+	<input type="text" placeholder="room#" id="roomId"/>
+	<input type="button" value="Join Room" onclick="JoinNew()"/>
+	
+	<h3>Game Room List</h3>
+	<table style="width:100%;border-collapse: collapse;text-align: center;">
 		<thead>
-			<tr style="background-color: #888"><th>ID</th><th>Level</th><th>Active/Total Players</th><td>State</th><th></th></tr>
+			<tr style="background-color: #888"><th>ID</th><th>Level</th><th>Active/Total Players</th><th>State</th><th></th></tr>
 		</thead>
 		
-		<tbody id="rooms" style="text-allign: center;">
+		<tbody id="rooms">
 		
 		</tbody>
 	</table>

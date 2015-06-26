@@ -1,8 +1,10 @@
 var fs = require('fs');
 var Redis = require('ioredis');
 var Protobuf = require('protocol-buffers');
+var async = require('async');
 
 var Room = require('./room');
+var RoomManager = require('./roommanager');
 var ssg15 = require('./globals');
 var comm = Protobuf(fs.readFileSync(ssg15.Config.PublicDir+'cfg/messages.proto'));
 
@@ -49,20 +51,19 @@ module.exports = function (id) {
 	};
 
 	this.Load = function(cb){
-		this._redis.get(this._redisKey, function(err, res)
+		instance._redis.get(instance._redisKey, function(err, res)
 		{
 			if(!err)
 			{
 				if(res !== undefined && res !== null)
 				{
-					//player exists, copy res to this._data
-					console.log('Loading player data...('+instance.id+')');
-					//console.log(res);
 					instance._data = JSON.parse(res);
-				}else{
+				}
+				else
+				{
 					console.log('Player load failed: ' + instance.id);
 				}
-				cb();
+				 cb();
 			}
 			else
 			{
@@ -75,9 +76,7 @@ module.exports = function (id) {
 	{
 		if(instance._data.roomId == 0)
 		{
-			var rm = new Room(room);
-			rm.Load(function() {
-				//check there is room... in the room
+			RoomManager.GetRoom(room,function(rm){
 				if(rm._data.players.length < ssg15.Config.MaxPlayers)
 				{
 					//yay! - join le room
@@ -103,8 +102,7 @@ module.exports = function (id) {
 		switch(msg.type){
 			case 0:{
 				//get game data
-				var rm = new Room(instance._data.roomId);
-				rm.Load(function() {
+				RoomManager.GetRoom(instance._data.roomId, function (rm) {
 					var rsp_d = {
 						id: msg.id,
 						type: msg.type,
@@ -131,8 +129,7 @@ module.exports = function (id) {
 			}
 			case 1:{
 				//get player names
-				var rm = new Room(instance._data.roomId);
-				rm.Load(function(){
+				RoomManager.GetRoom(instance._data.roomId,function(rm){
 					rm.GetPlayerListFull(function(list){
 						var rsp_d = {
 							id: msg.id,
@@ -177,18 +174,17 @@ module.exports = function (id) {
 				}
 
 				//send player data back
-				instance.Flush(function() {
-					var rsp_d = {
-						id: msg.id,
-						type: msg.type,
-						UseAbilities_Response:{
-							player_data: instance._data.data,
-							tech_tree: instance._data.tech
-						}
-					};
-					var rsp = comm.CTowerAttack_Response.encode(rsp_d);
-					cb(rsp);
-				});
+				instance.Flush();
+				var rsp_d = {
+					id: msg.id,
+					type: msg.type,
+					UseAbilities_Response:{
+						player_data: instance._data.data,
+						tech_tree: instance._data.tech
+					}
+				};
+				var rsp = comm.CTowerAttack_Response.encode(rsp_d);
+				cb(rsp);
 				break;
 			}
 			case 4:{

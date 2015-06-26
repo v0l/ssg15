@@ -12,7 +12,7 @@ body
 
   color: white;
   font-family: Helvetica, Verdana;
-  background-image: url('https://upload.wikimedia.org/wikipedia/commons/f/fc/Emu-wild.jpg') !important;
+  /*background-image: url('https://upload.wikimedia.org/wikipedia/commons/f/fc/Emu-wild.jpg') !important;*/
   background-attachment: fixed;
   overflow-x:hidden; overflow-y:auto;
 }
@@ -75,9 +75,36 @@ body
 
 #gameCont
 {
-  position: relative;
-  float: left;
-  margin-top: 5px;
-  left: 50%;
-  margin-left: -640px;
+	position: relative;
+	float: left;
+	margin-top: 5px;
+	left: 50%;
+	margin-left: -640px;
+}
+
+/* LOBBY STYLES */
+.currentRoomInfo{
+	border: 1px solid #fff;
+	margin: 5px;
+	overflow: hidden;
+}
+
+.currentRoomInfo div{
+	height: 60px;
+	float:left;
+	border-right: 1px solid;
+	text-align:center;
+	line-height: 27px;
+}
+
+.currentRoomInfo .info  .header {
+	font-size: 14px;
+	color: #eee;
+	width: 120px;
+	height: 21px;
+	line-height: 21px;
+	text-align: center;
+	border-bottom: 1px solid;
+	border-right: 0;
+	font-weight: bold;
 }

@@ -13,6 +13,7 @@ var session = require('express-session');
 var RedisStore = require('connect-redis')(session);
 
 var Room = require('./room');
+var RoomManager = require('./roommanager');
 var Player = require('./player');
 var ssg15 = require('./globals');
 var hbHelpers = require('./views/helpers');
@@ -61,8 +62,7 @@ app.get('/',ensureAuthenticated, function(req, res) {
 app.get('/TowerAttack', ensureAuthenticated, function(req, res) {
 	var pl = new Player(req.user.steamId);
 	pl.Load(function() {
-		var rm = new Room(pl._data.roomId);
-		rm.Load(function() {
+		RoomManager.GetRoom(pl._data.roomId, function(rm){
 			res.render('game', { user: req.user, room: rm, player: pl });
 		});
 	});
@@ -75,9 +75,10 @@ app.get('/login', function(req, res) {
 app.get('/lobby', ensureAuthenticated, function(req, res) {
 	var pl = new Player(req.user.id);
 	pl.Load(function() {
-		var rm = new Room(pl._data.roomId);
-		rm.Load(function() {
-			res.render('lobby', { user: req.user, room: rm, player: pl });
+		RoomManager.GetRoom(pl._data.roomId,function(rm){
+			rm.Load(function() {
+				res.render('lobby', { user: req.user, room: rm, player: pl });
+			});
 		});
 	});
 });
@@ -89,7 +90,7 @@ app.get('/auth/steam', passport.authenticate('steam', { failureRedirect: '/login
 app.get('/auth/steam/return', passport.authenticate('steam', { failureRedirect: '/login#failed' }), function(req, res) {
 	//check player exists in redis
 	var pl = new Player(req.user.id);
-	pl.Load(function () {
+	pl.Load(function() {
 		pl._data.displayName = req.user.displayName;
 		pl._data.steamId = req.user.id;
 		pl.Flush();
@@ -132,8 +133,7 @@ app.get('/data/joinroom/:id',ensureAuthenticated, function(req, res) {
 });
 
 app.get('/data/:room/players', function(req, res){
-	var rm = new Room(req.params.room);
-	rm.Load(function() {
+	RoomManager.GetRoom(req.params.room, function(rm) {
 		rm.GetPlayerListFull(function(data){
 			res.json(data);
 		});
@@ -146,11 +146,12 @@ function ensureAuthenticated(req, res, next) {
 }
 
 var server = app.listen(8080, function () {
+	var host = server.address().address;
+	var port = server.address().port;
 
-  var host = server.address().address;
-  var port = server.address().port;
+	console.log('ssg15'+(ssg15.Config.Env == 'dev' ? '-dev' : '')+' app listening at http://%s:%s', host, port);
 
-  console.log('ssg15'+(ssg15.Config.Env == 'dev' ? '-dev' : '')+' app listening at http://%s:%s', host, port);
+	RoomManager.StartTicker();
 });
 
 var ws = new WebSocketServer({
