@@ -64,6 +64,7 @@ module.exports = function (id) {
 	};
 
 	var instance = this;
+	var entityIdCounter = 0; // Store with the room data?
 	
 	this.Flush = function()
 	{
@@ -86,6 +87,7 @@ module.exports = function (id) {
 					console.log('Loading room data...('+instance._data.roomId+')');
 					//console.log(res);
 					instance._data = JSON.parse(res);
+					instance.SpawnEnemy(0, 1); // Temp
 				}
 				cb();
 			}
@@ -192,6 +194,38 @@ module.exports = function (id) {
 	{
 		console.log("Room Tick");
 		instance._Flush();
+	};
+
+	// Spawn functions
+	this.GetNewEntityID = function() {
+		return entityIdCounter++;
+	}
+
+	this.SpawnLane = function (lane) {
+		var level = instance._data.data.level;
+
+		// Boss wave
+		if (level % 10 == 0) {
+
+		} 
+		else {
+
+		}
+	};
+
+	this.SpawnEnemy = function (lane, enemy) {
+		var enemyData = {
+			id: instance.GetNewEntityID(),
+			type: comm.ETowerAttackEnemyType.k_ETowerAttackEnemyType_Mob,
+			hp: 120000,
+			max_hp: 1200000,
+			dps: 10,
+			timer: 0,
+			gold: 999
+		};
+
+		instance._data.data.lanes[lane].enemies.push(enemyData);
+		console.log("Spawned Enemy");
 	};
 };
 module.exports.GetAll = function(cb){
