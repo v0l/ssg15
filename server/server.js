@@ -76,9 +76,13 @@ app.get('/lobby', ensureAuthenticated, function(req, res) {
 	var pl = new Player(req.user.id);
 	pl.Load(function() {
 		RoomManager.GetRoom(pl._data.roomId,function(rm){
-			rm.Load(function() {
-				res.render('lobby', { user: req.user, room: rm, player: pl });
-			});
+			if(rm !== undefined){
+				rm.Load(function() {
+					res.render('lobby', { user: req.user, room: rm, player: pl });
+				});
+			}else{
+				res.render('lobby', { user: req.user, room: null, player: pl });
+			}
 		});
 	});
 });

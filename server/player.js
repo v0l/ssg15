@@ -168,8 +168,24 @@ module.exports = function (id) {
 				var req = msg.UseAbilities_Request;
 				for(var x=0;x<req.requested_abilities.length;x++){
 					var ab = req.requested_abilities[x];
-					if(ab.ability == comm.ETowerAttackAbility.k_ETowerAttackAbility_ChangeLane){
-						instance._data.data.current_lane = ab.new_lane;
+					switch(ab.ability){
+						case comm.ETowerAttackAbility.k_ETowerAttackAbility_ChangeLane: {
+							instance._data.data.current_lane = ab.new_lane;
+							break;
+						}
+						case comm.ETowerAttackAbility.k_ETowerAttackAbility_Attack: {
+							RoomManager.GetRoom(instance._data.roomId,function(rm){
+								rm.ProcessAbility(instance, ab);
+							});
+							break;
+						}
+						case comm.ETowerAttackAbility.k_ETowerAttackAbility_ChangeTarget: {
+							console.log("Change target!");
+							break;
+						}
+						default: {
+							console.log(req);
+						}
 					}
 				}
 

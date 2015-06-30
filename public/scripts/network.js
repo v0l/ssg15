@@ -146,6 +146,17 @@ CServerInterface.prototype.Write = function( obj, callback )
 	if(instance.m_ws != null && instance.m_ws.readyState == WebSocket.OPEN){
 		instance.m_ws_cbq[instance.m_ws_cbq.length] = callback;
 		
+		/*if(instance.m_ws_cbq.length > 10){
+			console.warn("There are "+instance.m_ws_cbq.length+" messages waiting in the cb_q, your game may not be updating");
+		}else if(instance.m_ws_cbq.length > 100){
+			//clear the queue anyway
+			for(var x=0;x<instance.m_ws_cbq.length;x++){
+				instance.m_ws_cbq[x](null);
+			}
+			instance.m_ws_cbq = [];
+			console.error("Flushing callback queue");
+		}*/
+		
 		instance.m_ws.send(obj.encode().toArrayBuffer())
 		instance.m_ws_ps++;
 	}
@@ -235,7 +246,7 @@ CServerInterface.prototype.UseAbilities = function( callback, failed, rgParams )
 		type: 3,
 		UseAbilities_Request: rgParams
 	};
-
+	
 	instance.Write(new instance.m_protobuf_Request(rgRequest), function(rgResult){
 		var result = { 'response': rgResult.toRaw( true, true ) };
 		if ( result.response.player_data )

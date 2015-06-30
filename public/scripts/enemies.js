@@ -249,7 +249,7 @@ CEnemy.prototype.GetName = function()
 
 CEnemy.prototype.ApplyLevelSkin = function(strSetName)
 {
-	var rnd = xorprng( this.m_Game.m_rgGameData.level / 10, 50 );
+	var rnd = this.xorprng( this.m_Game.m_rgGameData.level / 10, 50 );
 	if( rnd == 42 )
 		strSetName = 'tf2';
 
@@ -485,7 +485,7 @@ CEnemyCreep.prototype.ApplyLevelSkin = function(strSetName)
 	if( strIndex < 10 )
 		strIndex = "0" + strIndex;
 
-	var rnd = xorprng( this.m_Game.m_rgGameData.level / 10, 50 );
+	var rnd = this.xorprng( this.m_Game.m_rgGameData.level / 10, 50 );
 	if( rnd == 42 )
 		strSetName = 'tf2';
 
@@ -493,8 +493,8 @@ CEnemyCreep.prototype.ApplyLevelSkin = function(strSetName)
 	{
 		case 'tf2': // ???
 			var nKey = this.m_nID + this.m_Game.m_rgGameData.level * 10 + this.m_nLane * 100
-			var nIndex = 1 + xorprng( nKey, 11 );
-			var bBlue = xorprng( nKey, 2 ) == 1;
+			var nIndex = 1 + this.xorprng( nKey, 11 );
+			var bBlue = this.xorprng( nKey, 2 ) == 1;
 			if( nIndex < 10 )
 				strIndex = "0" + nIndex;
 			else
@@ -709,8 +709,8 @@ CEnemyMiniBoss.prototype.GetName = function()
 	if( !rgNames )
 		return this.m_strSkinName;
 
-	var nIndex = xorprng( this.m_nID + this.m_Game.m_rgGameData.level * 10 + this.m_nLane * 100, rgNames.length );
-	var nPrefixIndex = xorprng( this.m_nID + this.m_Game.m_rgGameData.level * 10 + this.m_nLane * 100, g_rgNamePrefixes.length );
+	var nIndex = this.xorprng( this.m_nID + this.m_Game.m_rgGameData.level * 10 + this.m_nLane * 100, rgNames.length );
+	var nPrefixIndex = this.xorprng( this.m_nID + this.m_Game.m_rgGameData.level * 10 + this.m_nLane * 100, g_rgNamePrefixes.length );
 
 	var strName = rgNames[ nIndex ];
 

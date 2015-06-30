@@ -1,53 +1,27 @@
 var fs = require('fs');
 var Redis = require('ioredis');
 var Protobuf = require('protocol-buffers');
-var UUID = require('UUID');
-var async = require('async');
+var Long = require("long");
 
 var ssg15 = require('./globals');
 var comm = Protobuf(fs.readFileSync(ssg15.Config.PublicDir+'cfg/messages.proto'));
 
 module.exports = function (id) {
 	this._redis = new Redis();
-	this._redisKey = function() { return 'room:'+this._data.id; };
+	this._redisKey = function() { return 'room:'+instance._data.roomId; };
 	
 	//set room object to defaults
 	this._data = {
 		roomId: id,
+		enemyIndex: 0,
 		data: {
 			level: 0,
-			enemyIndex: 0,
-			lanes: [
-				{
-					enemies: [], 
-					dps: 0,
-					gold_dropped: 0,
-					active_player_abilities: [],
-					player_hp_buckets: [],
-					element: comm.ETowerAttackElement.k_ETowerAttackElement_Invalid
-				}, 
-				{
-					enemies: [],
-					dps: 0,
-					gold_dropped: 0,
-					active_player_abilities: [],
-					player_hp_buckets: [],
-					element: comm.ETowerAttackElement.k_ETowerAttackElement_Invalid
-				}, 
-				{
-					enemies: [],
-					dps: 0,
-					gold_dropped: 0,
-					active_player_abilities: [],
-					player_hp_buckets: [],
-					element: comm.ETowerAttackElement.k_ETowerAttackElement_Invalid
-				}
-			],
-			timestamp: new Date().getTime(),
+			lanes: [],
+			timestamp: new Date().getTime() / 1000,
 			status: comm.EMiniGameStatus.k_EMiniGameStatus_Invalid,
 			events: [],
-			timestamp_game_start: new Date().getTime(),
-			timestamp_level_start: new Date().getTime()
+			timestamp_game_start: new Date().getTime() / 1000,
+			timestamp_level_start: new Date().getTime() / 1000
 		},
 		stats: {
 			num_players: 0,
@@ -100,10 +74,7 @@ module.exports = function (id) {
 	{
 		if(instance._data.roomId !== 0)
 		{
-			if(instance._data.data.status == comm.EMiniGameStatus.k_EMiniGameStatus_Invalid){
-				instance._data.data.status = comm.EMiniGameStatus.k_EMiniGameStatus_Running;
-				instance._data.data.level = 1;
-			}
+			console.log(instance._data.roomId);
 			player._data.roomId = instance._data.roomId;
 			instance._data.players.push(player.id);
 			instance._data.stats.num_players = instance._data.players.length;
@@ -156,7 +127,7 @@ module.exports = function (id) {
 			instance._redis.pipeline(cmds).exec(function(err, result){
 
 				var out = {
-					timestamp: new Date().getTime(),
+					timestamp: new Date().getTime() / 1000,
 					info: instance._data,
 					playerlist: []
 				};
@@ -182,15 +153,68 @@ module.exports = function (id) {
 		}
 	};
 	
-	this.HandlePlayerMessage = function(playerData, Message) 
+	this.ProcessAbility = function(player, ab) 
 	{
+		switch(ab.ability){
+			case comm.ETowerAttackAbility.k_ETowerAttackAbility_Attack: {
+				//apply base dps to players lane
+				var l = instance._data.data.lanes[player._data.data.current_lane];
+				if(l !== null && l !== undefined){
+					for(var x=0;x<l.enemies.length;x++){
+						var e = l.enemies[x];
+						var dps = (player._data.tech.dps * ab.num_clicks);
+						e.hp -= dps;
+					}
+				}else{
+					console.log('Unknown player lane');
+				}
+				break;
+			}
+			default: {
+				console.log(req);
+			}
+		}
+					
 		instance.Flush();
 	};
-
+	
+	this.lastTick = 0;
+	
 	this.Tick = function() 
 	{
-		//console.log("Room Tick");
-		//instance.Flush();
+		var now = new Date().getTime();
+		if((now - instance.lastTick) >= 1000){
+			instance.lastTick = now;
+			instance._data.data.timestamp = now / 1000;
+			
+			//remove dead enemies
+			for(var z=0;z<instance._data.data.lanes.length;z++){
+				var l = instance._data.data.lanes[z];
+			
+				for(var x=0;x<l.enemies.length;x++){
+					var e = l.enemies[x];
+					if(e.hp <= 0){
+						l.enemies.splice(x,1);
+					}
+				}
+			}
+			
+			//check if all lanes are empty
+			if(instance._data.data.lanes.length == 0 && instance._data.data.level == 0)
+			{
+				instance.InitRoom();
+			}
+			else if(instance._data.data.lanes[0].enemies.length == 0 && instance._data.data.lanes[1].enemies.length == 0 && instance._data.data.lanes[2].enemies.length == 0)
+			{
+				instance.NextLevel();
+			}
+			else
+			{
+
+			}		
+			
+			instance.Flush();
+		}
 	};
 
 	// Spawn functions
@@ -199,66 +223,88 @@ module.exports = function (id) {
 		return instance._data.enemyIndex;
 	}
 
-	this.SpawnLane = function (lane) {
-		var level = instance._data.data.level;
-
-		// Boss wave
-		if (level % 10 == 0) {
-
-		} 
-		else {
-			//addspawner and 3 random types
-			async.parallel([
-				function() { instance.SpawnEnemy(0, comm.ETowerAttackEnemyType.k_ETowerAttackEnemyType_Tower); },
-				function() { instance.SpawnEnemy(1, comm.ETowerAttackEnemyType.k_ETowerAttackEnemyType_Tower); },
-				function() { instance.SpawnEnemy(2, comm.ETowerAttackEnemyType.k_ETowerAttackEnemyType_Tower); }
-			]);
+	this.CreateLane = function(bosslane){
+		var l = {
+			enemies: [],
+			dps: 0,
+			gold_dropped: 0,
+			active_player_abilities: [],
+			player_hp_buckets: [],
+			element: comm.ETowerAttackElement.k_ETowerAttackElement_Invalid
+		};
+		
+		if((instance._data.data.level + 1) % 100 == 0 && bosslane) //boss level
+		{
+			l.enemies[0] = instance.CreateEnemy(comm.ETowerAttackEnemyType.k_ETowerAttackEnemyType_Boss);
 		}
-	};
+		else
+		{
+			l.enemies[0] = instance.CreateEnemy(comm.ETowerAttackEnemyType.k_ETowerAttackEnemyType_Tower);
+			l.enemies[1] = instance.CreateEnemy(comm.ETowerAttackEnemyType.k_ETowerAttackEnemyType_Mob);
+			l.enemies[2] = instance.CreateEnemy(comm.ETowerAttackEnemyType.k_ETowerAttackEnemyType_Mob);
+			l.enemies[3] = instance.CreateEnemy(comm.ETowerAttackEnemyType.k_ETowerAttackEnemyType_Mob);
+		}
 
-	this.NextLevel = function(cb) {
-		//clear lanes
-		var lane1 = instance._data.data.lanes[0];
-		var lane2 = instance._data.data.lanes[1];
-		var lane3 = instance._data.data.lanes[2];
-		
-		lane1.dps = lane2.dps = lane3.dps = 0;
-		lane1.enemies = [];
-		lane2.enemies = [];
-		lane3.enemies = [];
-
-		lane1.active_player_abilities = [];
-		lane2.active_player_abilities = [];
-		lane3.active_player_abilities = [];
-
-		instance._data.data.level++;
-		
-		instance.SpawnLane(0);
-		instance.SpawnLane(1);
-		instance.SpawnLane(2);
-
-		instance.Flush();
-	};
+		return l;
+	}
 	
-	this.SpawnEnemy = function (lane, enemy) {
-		var enemyData = {
+	this.CreateEnemy = function(t){
+		var e = {
 			id: instance.GetNewEntityID(),
-			type: enemy,
-			hp: 120000,
-			max_hp: 1200000,
+			type: t,
+			hp: 120,
+			max_hp: 120,
 			dps: 10,
 			timer: 0,
 			gold: 999
 		};
 		
-		var e = instance._data.data.lanes[lane];
-		instance._data.data.lanes[lane].element = comm.ETowerAttackElement.k_ETowerAttackElement_Fire;
+		console.log(e);
+		return e;
+	}
+
+	this.InitRoom = function()
+	{
+		instance._data.data.status = comm.EMiniGameStatus.k_EMiniGameStatus_Running;
 		
-		if(instance._data.data.lanes[lane].enemies.length >= 3){
-			instance._data.data.lanes[lane].enemies[instance._data.data.lanes[lane].enemies.length] = enemyData;
+		instance._data.data.lanes = [];
+		instance._data.data.lanes[0] = instance.CreateLane(false);
+		instance._data.data.lanes[1] = instance.CreateLane(false);
+		instance._data.data.lanes[2] = instance.CreateLane(false);
+	}
+	
+	this.NextLevel = function() {
+		//clear lanes
+		instance._data.data.lanes = [];
+
+		instance._data.data.level++;
+		instance._data.data.timestamp_level_start = new Date().getTime() / 1000;
+		
+		instance._data.data.lanes[0] = instance.CreateLane(false);
+		instance._data.data.lanes[1] = instance.CreateLane(false);
+		instance._data.data.lanes[2] = instance.CreateLane(false);
+	};
+	
+	this.SpawnEnemy = function (lane, enemy) {
+		var enemyData = {
+			id: 999,
+			type: enemy,
+			hp: 100,
+			max_hp: 100,
+			dps: 10,
+			timer: 0,
+			gold: 999
+		};
+			
+		var e = instance._data.data.lanes[lane];
+
+		e.element = comm.ETowerAttackElement.k_ETowerAttackElement_Fire;
+		
+		if(e.enemies.length >= 3){
+			e.enemies[e.enemies.length] = enemyData;
 			console.log("Spawned Enemy");
 		}else{
-			console.log(instance._data.data.lanes[lane].enemies[0]);
+			console.log(e.enemies[0]);
 			console.log("this lane is already full of mobs");
 		}
 	};

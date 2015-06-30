@@ -326,11 +326,15 @@ CSceneGame.prototype.Tick = function()
 			// Get game state
 			g_Server.GetGameData(
 				function(rgResult){
-					if( rgResult.response.game_data )
+					if( rgResult.response.game_data)
+					{
 						instance.m_rgGameData = rgResult.response.game_data;
+					}
 
-					if( rgResult.response.stats )
+					if( rgResult.response.stats)
+					{
 						instance.m_rgStats = rgResult.response.stats;
+					}
 
 					instance.OnGameDataUpdate();
 
@@ -831,8 +835,8 @@ CSceneGame.prototype.OnGameDataUpdate = function()
 	{
 		if ( this.m_nTime )
 		{
-			console.log("Got stale data for time " + this.m_nTime + ", requesting data again next tick...");
-			this.m_bReceivedStaleData = false;
+			//console.log("Got stale data for time " + this.m_nTime + ", requesting data again next tick...");
+			//this.m_bReceivedStaleData = false;
 		}
 		return;
 	}
