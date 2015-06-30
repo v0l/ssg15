@@ -47,15 +47,20 @@ CServerInterface.prototype.Connect = function( callback )
 	instance.m_strWebAPIHost = rgResult.webapi_host;
 	instance.m_ws = new WebSocket( "ws:\/\/"+location.host+"/ws");
 	instance.m_ws.onmessage = function(evt){
-		// Dunno how to decode or how to pass this off to where it needs to go
 		var data = evt.data;
 		var msg = instance.m_protobuf_Responce.decode(data);
 
+		for (var x in instance.m_ws_cbq) {
+			if (instance.m_ws_cbq[x] == undefined) {         
+				delete instance.m_ws_cbq[x];
+			}
+		}
+
 		//fire the callback based on the msg id (message seq)
+		var cb = instance.m_ws_cbq['msg-' + msg.id];
 		switch(msg.type){
 			case 0:{
 				//get game data
-				var cb = instance.m_ws_cbq[msg.id];
 				if(cb != undefined){
 					cb(msg.GetGameData_Response);
 				}
@@ -63,7 +68,6 @@ CServerInterface.prototype.Connect = function( callback )
 			}
 			case 1:{
 				//get player names
-				var cb = instance.m_ws_cbq[msg.id];
 				if(cb != undefined){
 					cb(msg.GetPlayerNames_Response);
 				}
@@ -71,7 +75,6 @@ CServerInterface.prototype.Connect = function( callback )
 			}
 			case 2:{
 				//get player data
-				var cb = instance.m_ws_cbq[msg.id];
 				if(cb != undefined){
 					cb(msg.GetPlayerData_Response);
 				}
@@ -79,7 +82,6 @@ CServerInterface.prototype.Connect = function( callback )
 			}
 			case 3:{
 				//use abilities
-				var cb = instance.m_ws_cbq[msg.id];
 				if(cb != undefined){
 					cb(msg.UseAbilities_Response);
 				}
@@ -87,7 +89,6 @@ CServerInterface.prototype.Connect = function( callback )
 			}
 			case 4:{
 				//choose upgrade
-				var cb = instance.m_ws_cbq[msg.id];
 				if(cb != undefined){
 					cb(msg.ChooseUpgrade_Response);
 				}
@@ -95,7 +96,6 @@ CServerInterface.prototype.Connect = function( callback )
 			}
 			case 5:{
 				//get tuning data
-				var cb = instance.m_ws_cbq[msg.id];
 				if(cb != undefined){
 					cb(msg.GetTuningData_Response);
 				} 
@@ -103,7 +103,6 @@ CServerInterface.prototype.Connect = function( callback )
 			}
 			case 6:{
 				//get daily stats rollup 
-				var cb = instance.m_ws_cbq[msg.id];
 				if(cb != undefined){
 					cb(msg.GetDailyStatsRollup_Response);
 				}
@@ -128,6 +127,8 @@ CServerInterface.prototype.Connect = function( callback )
 				break;
 			}
 		}
+		
+		instance.m_ws_cbq['msg-' + msg.id] = undefined;
 	};
 
 	// Wait for the connection to be ready
@@ -144,18 +145,7 @@ CServerInterface.prototype.Write = function( obj, callback )
 	var instance = this;
 	
 	if(instance.m_ws != null && instance.m_ws.readyState == WebSocket.OPEN){
-		instance.m_ws_cbq[instance.m_ws_cbq.length] = callback;
-		
-		/*if(instance.m_ws_cbq.length > 10){
-			console.warn("There are "+instance.m_ws_cbq.length+" messages waiting in the cb_q, your game may not be updating");
-		}else if(instance.m_ws_cbq.length > 100){
-			//clear the queue anyway
-			for(var x=0;x<instance.m_ws_cbq.length;x++){
-				instance.m_ws_cbq[x](null);
-			}
-			instance.m_ws_cbq = [];
-			console.error("Flushing callback queue");
-		}*/
+		instance.m_ws_cbq['msg-' + instance.m_ws_ps] = callback;
 		
 		instance.m_ws.send(obj.encode().toArrayBuffer())
 		instance.m_ws_ps++;
