@@ -3,12 +3,12 @@ var Redis = require('ioredis');
 var Protobuf = require('protocol-buffers');
 var async = require('async');
 
-var Room = require('./room');
+var T = require('./tuningdata');
 var RoomManager = require('./roommanager');
 var ssg15 = require('./globals');
 var comm = Protobuf(fs.readFileSync(ssg15.Config.PublicDir+'cfg/messages.proto'));
 
-module.exports = function (id) {
+var Player = function (id) {
 	this._redis = new Redis();
 	this.id = id;
 	this._redisKey = 'player:'+id;
@@ -18,7 +18,7 @@ module.exports = function (id) {
 		steamId: null,
 		displayName: null,
 		data: {
-			hp: 1000,
+			hp: T.player.hp,
 			current_lane: 0,
 			target: 0,
 			time_died: 0,
@@ -26,20 +26,27 @@ module.exports = function (id) {
 			active_abilities_bitfield: 0,
 			active_abilities: [],
 			crit_damage: 0,
+			damage_multiplier_fire: T.player.damage_multiplier_fire,
+			damage_multiplier_water: T.player.damage_multiplier_water,
+			damage_multiplier_air: T.player.damage_multiplier_air,
+			damage_multiplier_earth: T.player.damage_multiplier_earth,
+			damage_multiplier_crit: T.player.damage_multiplier_crit,
+			crit_percentage: T.player.crit_percentage,
 			loot: []
 		},
 		tech: {
 			upgrades: [],
 			badge_points: 0,
 			ability_items: [],
-			base_dps: 10,
-			max_hp: 1000,
-			dps: 10
+			base_dps: 2,
+			max_hp: T.player.hp,
+			damage_per_click: T.player.damage_per_click,
+			dps: T.player.dps
 		}
 	};
-
+	
 	var instance = this;
-
+		
 	this.Flush = function()
 	{
 		instance._redis.set(instance._redisKey, JSON.stringify(instance._data));
@@ -49,7 +56,30 @@ module.exports = function (id) {
 	{
 		p.set(instance._redisKey, JSON.stringify(instance._data));
 	};
+	
+	this.AddGold = function(g) {
+		instance._data.data.gold += g;
+		instance.Flush();
+	};
 
+	this.UpdateStats = function() {
+		//calc click damage type 2
+		instance._data.tech.damage_per_click = T.player.damage_per_click; //reset to base
+		instance._data.tech.max_hp = T.player.hp; //reset to base
+		
+		for(var x=0;x<instance._data.tech.upgrades.length;x++){
+			var u = instance._data.tech.upgrades[x];
+			var u_t = T.upgrades[u.upgrade];
+			
+			if(u_t.type == 2){
+				instance._data.tech.damage_per_click = instance._data.tech.damage_per_click * (u_t.multiplier * (1 + u.level));
+			}else if(u_t.type == 0){
+				instance._data.data.hp = instance._data.tech.max_hp = instance._data.tech.max_hp * (u_t.multiplier * (1 + u.level));
+			}
+		}
+		
+	}
+	
 	this.Load = function(cb){
 		instance._redis.get(instance._redisKey, function(err, res)
 		{
@@ -96,7 +126,34 @@ module.exports = function (id) {
 			cb({ msg: 'You are already in a room!', ok: false });
 		}
 	};
+	
+	this.BuyUpgrade = function(id){
+		//check if upgrade exists
+		var hadUpgrade = false;
+		for(var x=0;x<instance._data.tech.upgrades.length;x++){
+			var u = instance._data.tech.upgrades[x];
 
+			if(u.upgrade == id){
+				var up = T.upgrades[id];
+				u.level++;
+				u.cost_for_next_level = T.Calc(u.level, up.cost, up.cost_exponential_base);
+				hadUpgrade = true;
+				break;
+			}
+		}
+		
+		if(!hadUpgrade){
+			var u = T.upgrades[id];
+			instance._data.tech.upgrades[instance._data.tech.upgrades.length] = {
+				upgrade: id,
+				level: 1,
+				cost_for_next_level: T.Calc(1, u.cost, u.cost_exponential_base)
+			};
+		}
+		
+		instance.UpdateStats();
+	}
+	
 	this.HandleMessage = function(msg, cb)
 	{
 		switch(msg.type){
@@ -180,7 +237,7 @@ module.exports = function (id) {
 							break;
 						}
 						case comm.ETowerAttackAbility.k_ETowerAttackAbility_ChangeTarget: {
-							console.log("Change target!");
+							instance._data.data.target = ab.new_target;
 							break;
 						}
 						default: {
@@ -205,7 +262,22 @@ module.exports = function (id) {
 			}
 			case 4:{
 				//choose upgrade
-
+				for(var x=0;x<msg.ChooseUpgrade_Request.upgrades.length;x++){
+					var u = msg.ChooseUpgrade_Request.upgrades[x];
+					instance.BuyUpgrade(u);
+				}
+				
+				instance.Flush();
+				var rsp_d = {
+					id: msg.id,
+					type: msg.type,
+					ChooseUpgrade_Response:{
+						player_data: instance._data.data,
+						tech_tree: instance._data.tech
+					}
+				};
+				var rsp = comm.CTowerAttack_Response.encode(rsp_d);
+				cb(rsp);
 				break;
 			}
 			case 5:{
@@ -239,3 +311,5 @@ module.exports = function (id) {
 		}
 	};
 };
+
+module.exports.Player = Player;

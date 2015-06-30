@@ -1,5 +1,5 @@
 var async = require('async');
-var Room = require('./room');
+var Room = require('./room').Room;
 var _r = [];
 
 module.exports.GetRoom = function(id, cb){
@@ -20,17 +20,12 @@ module.exports.GetRoom = function(id, cb){
 };
 
 module.exports.StartTicker = function(){
-	async.forever(function(next){
+	setInterval(function() {
 		async.each(_r,function(a, cb){
 			if(a !== undefined){
 				a.Tick();
 			}
 			cb();
-		},function(err){
-			next();
 		});
-	},
-	function(err){
-		console.log(err);
-	});
+	},1000);
 };

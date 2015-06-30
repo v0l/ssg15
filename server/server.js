@@ -12,9 +12,9 @@ var passport = require('passport');
 var session = require('express-session');
 var RedisStore = require('connect-redis')(session);
 
-var Room = require('./room');
 var RoomManager = require('./roommanager');
-var Player = require('./player');
+var Player = require('./player').Player;
+var Room = require('./room').Room;
 var ssg15 = require('./globals');
 var hbHelpers = require('./views/helpers');
 var expressGlobals = require('./express.global');

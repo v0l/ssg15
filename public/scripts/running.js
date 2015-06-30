@@ -1222,7 +1222,7 @@ CSceneGame.prototype.GetUpgradeCost = function( nUpgradeID )
 			{
 				var upgrade = this.GetUpgradeTuningData( nUpgradeID );
 
-				var nPredictedCost = FloorToMultipleOf( 10, CalcExponentialTuningValve( this.m_rgPlayerUpgrades[i].level, upgrade.cost, upgrade.cost_exponential_base ) );
+				var nPredictedCost = this.FloorToMultipleOf( 10, this.CalcExponentialTuningValve( this.m_rgPlayerUpgrades[i].level, upgrade.cost, upgrade.cost_exponential_base ) );
 				return nPredictedCost;
 			}
 		}
@@ -1953,19 +1953,18 @@ CSceneGame.prototype.CheckNewPlayer = function( )
 
 }
 // Stats functions we don't always include, redefine just in case.
-function FloorToMultipleOf( multipleOf, number )
+CSceneGame.prototype.FloorToMultipleOf = function( multipleOf, number )
 {
 	return Math.floor( number / multipleOf ) * multipleOf;
 }
 
-function CalcExponentialTuningValve( level, coefficient, base )
+CSceneGame.prototype.CalcExponentialTuningValve = function( level, coefficient, base )
 {
 	return ( coefficient * ( Math.pow( base, level ) ) );
 }
 
 // A shoddy implementation of an otherwise reasonable prng
 function xorprng( x, nMax ) {
-	debugger;
 	x ^= parseInt( g_GameID ); // a
 	x ^= x << 25; // b
 	x ^= x >> 27; // c

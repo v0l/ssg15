@@ -1,12 +1,14 @@
 var fs = require('fs');
 var Redis = require('ioredis');
 var Protobuf = require('protocol-buffers');
-var Long = require("long");
+var async = require('async');
 
+var T = require('./tuningdata');
 var ssg15 = require('./globals');
+var Player = require('./player').Player;
 var comm = Protobuf(fs.readFileSync(ssg15.Config.PublicDir+'cfg/messages.proto'));
 
-module.exports = function (id) {
+var Room = function(id) {
 	this._redis = new Redis();
 	this._redisKey = function() { return 'room:'+instance._data.roomId; };
 	
@@ -160,10 +162,17 @@ module.exports = function (id) {
 				//apply base dps to players lane
 				var l = instance._data.data.lanes[player._data.data.current_lane];
 				if(l !== null && l !== undefined){
-					for(var x=0;x<l.enemies.length;x++){
-						var e = l.enemies[x];
-						var dps = (player._data.tech.dps * ab.num_clicks);
-						e.hp -= dps;
+					if(player._data.data.target <= l.enemies.length)
+					{
+						if(ab.num_clicks > 20)
+						{
+							ab.num_clicks = 20;
+						}
+						
+						l.enemies[player._data.data.target].hp -= (player._data.tech.damage_per_click * ab.num_clicks);
+						instance._data.stats.num_clicks += ab.num_clicks;
+					}else{
+						console.log("invalid click");
 					}
 				}else{
 					console.log('Unknown player lane');
@@ -186,31 +195,35 @@ module.exports = function (id) {
 		if((now - instance.lastTick) >= 1000){
 			instance.lastTick = now;
 			instance._data.data.timestamp = now / 1000;
-			
-			//remove dead enemies
-			for(var z=0;z<instance._data.data.lanes.length;z++){
-				var l = instance._data.data.lanes[z];
-			
-				for(var x=0;x<l.enemies.length;x++){
-					var e = l.enemies[x];
-					if(e.hp <= 0){
-						l.enemies.splice(x,1);
-					}
-				}
-			}
+			instance._data.stats.num_players = instance._data.players.length;
 			
 			//check if all lanes are empty
 			if(instance._data.data.lanes.length == 0 && instance._data.data.level == 0)
 			{
 				instance.InitRoom();
 			}
-			else if(instance._data.data.lanes[0].enemies.length == 0 && instance._data.data.lanes[1].enemies.length == 0 && instance._data.data.lanes[2].enemies.length == 0)
-			{
-				instance.NextLevel();
-			}
 			else
 			{
-
+				var next = true;
+				for(var z=0;z<instance._data.data.lanes.length;z++){
+					var l = instance._data.data.lanes[z];
+					for(var x=0;x<l.enemies.length;x++)
+					{
+						if(l.enemies[x].hp > 0)
+						{
+							next = false;
+						}
+						else if(l.enemies[x].gold_dropped == 0)
+						{
+							l.enemies[x].gold_dropped = l.enemies[x].gold;
+							instance.DropGoldInLane(z, l.enemies[x].gold);
+						}
+					}
+				}
+				
+				if(next){
+					instance.NextLevel();
+				}
 			}		
 			
 			instance.Flush();
@@ -222,7 +235,22 @@ module.exports = function (id) {
 		instance._data.enemyIndex++;
 		return instance._data.enemyIndex;
 	}
-
+	
+	this.GetRandomElement = function(){
+		return Math.floor(1 + (3 * Math.random()));
+	}
+	
+	this.DropGoldInLane = function(lane, gold){
+		async.each(instance._data.players, function(a, cb){
+			var p = new Player(a);
+			p.Load(function() {
+				if(p._data.data.current_lane == lane){
+					p.AddGold(gold);
+				}
+			});
+		});
+	}
+	
 	this.CreateLane = function(bosslane){
 		var l = {
 			enemies: [],
@@ -230,10 +258,10 @@ module.exports = function (id) {
 			gold_dropped: 0,
 			active_player_abilities: [],
 			player_hp_buckets: [],
-			element: comm.ETowerAttackElement.k_ETowerAttackElement_Invalid
+			element: instance.GetRandomElement()
 		};
 		
-		if((instance._data.data.level + 1) % 100 == 0 && bosslane) //boss level
+		if(bosslane) //boss level
 		{
 			l.enemies[0] = instance.CreateEnemy(comm.ETowerAttackEnemyType.k_ETowerAttackEnemyType_Boss);
 		}
@@ -252,14 +280,65 @@ module.exports = function (id) {
 		var e = {
 			id: instance.GetNewEntityID(),
 			type: t,
-			hp: 120,
-			max_hp: 120,
+			hp: 1,
+			max_hp: 1,
 			dps: 10,
 			timer: 0,
-			gold: 999
+			gold: 10,
+			gold_dropped: 0
 		};
 		
-		console.log(e);
+		switch(t){
+			case 0:{
+				var t = T.tower;
+				
+				e.timer = t.respawn_time;
+				e.hp = e.max_hp = T.Calc(t.hp, t.hp_multiplier, t.hp_exponent, instance._data.data.level);
+				e.dps = T.Calc(t.dps, t.dps_multiplier, t.dps_exponent, instance._data.data.level);
+				e.gold = T.Calc(t.gold, t.gold_multiplier, t.gold_exponent, instance._data.data.level);
+				
+				break;
+			}
+			case 1:{
+				var t = T.mob;
+				
+				e.hp = e.max_hp = T.Calc(t.hp, t.hp_multiplier, t.hp_exponent, instance._data.data.level);
+				e.dps = T.Calc(t.dps, t.dps_multiplier, t.dps_exponent, instance._data.data.level);
+				e.gold = T.Calc(t.gold, t.gold_multiplier, t.gold_exponent, instance._data.data.level);
+				
+				break;
+			}
+			case 2:{
+				var t = T.boss;
+				
+				e.hp = e.max_hp = T.Calc(t.hp, t.hp_multiplier, t.hp_exponent, instance._data.data.level);
+				e.dps = T.Calc(t.dps, t.dps_multiplier, t.dps_exponent, instance._data.data.level);
+				e.gold = T.Calc(t.gold, t.gold_multiplier, t.gold_exponent, instance._data.data.level);
+				e.timer = t.respawn_time;
+				
+				break;
+			}
+			case 3:{
+				var t = T.miniboss;
+				
+				e.hp = e.max_hp = T.Calc(t.hp, t.hp_multiplier, t.hp_exponent, instance._data.data.level);
+				e.dps = T.Calc(t.dps, t.dps_multiplier, t.dps_exponent, instance._data.data.level);
+				e.gold = T.Calc(t.gold, t.gold_multiplier, t.gold_exponent, instance._data.data.level);
+				
+				break;
+			}
+			case 4:{
+				var t = T.treasure_mob;
+				
+				e.hp = e.max_hp = T.Calc(t.hp, t.hp_multiplier, t.hp_exponent, instance._data.data.level);
+				e.dps = T.Calc(t.dps, t.dps_multiplier, t.dps_exponent, instance._data.data.level);
+				e.gold = T.Calc(t.gold, t.gold_multiplier, t.gold_exponent, instance._data.data.level);
+				
+				break;
+			}
+		}
+		
+		//console.log(e);
 		return e;
 	}
 
@@ -280,36 +359,22 @@ module.exports = function (id) {
 		instance._data.data.level++;
 		instance._data.data.timestamp_level_start = new Date().getTime() / 1000;
 		
-		instance._data.data.lanes[0] = instance.CreateLane(false);
-		instance._data.data.lanes[1] = instance.CreateLane(false);
-		instance._data.data.lanes[2] = instance.CreateLane(false);
-	};
-	
-	this.SpawnEnemy = function (lane, enemy) {
-		var enemyData = {
-			id: 999,
-			type: enemy,
-			hp: 100,
-			max_hp: 100,
-			dps: 10,
-			timer: 0,
-			gold: 999
-		};
-			
-		var e = instance._data.data.lanes[lane];
-
-		e.element = comm.ETowerAttackElement.k_ETowerAttackElement_Fire;
-		
-		if(e.enemies.length >= 3){
-			e.enemies[e.enemies.length] = enemyData;
-			console.log("Spawned Enemy");
-		}else{
-			console.log(e.enemies[0]);
-			console.log("this lane is already full of mobs");
+		if((instance._data.data.level + 1) % 10 == 0)
+		{
+			var r = Math.floor(3 * Math.random());
+			instance._data.data.lanes[0] = instance.CreateLane(r == 0);
+			instance._data.data.lanes[1] = instance.CreateLane(r == 1);
+			instance._data.data.lanes[2] = instance.CreateLane(r == 2 || r == 3);
+		}
+		else
+		{
+			instance._data.data.lanes[0] = instance.CreateLane(false);
+			instance._data.data.lanes[1] = instance.CreateLane(false);
+			instance._data.data.lanes[2] = instance.CreateLane(false);
 		}
 	};
 };
-module.exports.GetAll = function(cb){
+Room.GetAll = function(cb){
 	var redis = new Redis();
 
 	redis.keys('room*', function(err, result){
@@ -344,3 +409,4 @@ module.exports.GetAll = function(cb){
 	});
 };
 
+module.exports.Room = Room;
