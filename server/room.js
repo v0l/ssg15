@@ -1,15 +1,13 @@
 var fs = require('fs');
-var Redis = require('ioredis');
 var Protobuf = require('protocol-buffers');
 var async = require('async');
 
+var M = require('./manager');
 var T = require('./tuningdata');
 var ssg15 = require('./globals');
-var Player = require('./player').Player;
 var comm = Protobuf(fs.readFileSync(ssg15.Config.PublicDir+'cfg/messages.proto'));
 
-var Room = function(id) {
-	this._redis = new Redis();
+var _room = function(id) {
 	this._redisKey = function() { return 'room:'+instance._data.roomId; };
 	
 	//set room object to defaults
@@ -46,7 +44,7 @@ var Room = function(id) {
 	
 	this.Flush = function()
 	{
-		instance._redis.set(instance._redisKey(), JSON.stringify(instance._data));
+		global.redis.set(instance._redisKey(), JSON.stringify(instance._data));
 	};
 	
 	this.FlushPipeline = function(p)
@@ -55,7 +53,7 @@ var Room = function(id) {
 	};
 	
 	this.Load = function(cb){
-		instance._redis.get(instance._redisKey(), function(err, res)
+		global.redis.get(instance._redisKey(), function(err, res)
 		{
 			if(!err)
 			{
@@ -81,7 +79,7 @@ var Room = function(id) {
 			instance._data.players.push(player.id);
 			instance._data.stats.num_players = instance._data.players.length;
 			
-			var p = instance._redis.pipeline();
+			var p = global.redis.pipeline();
 			
 			instance.FlushPipeline(p);
 			player.FlushPipeline(p);
@@ -126,7 +124,7 @@ var Room = function(id) {
 		
 		if(cmds.length > 0)
 		{
-			instance._redis.pipeline(cmds).exec(function(err, result){
+			global.redis.pipeline(cmds).exec(function(err, result){
 
 				var out = {
 					timestamp: new Date().getTime() / 1000,
@@ -192,42 +190,41 @@ var Room = function(id) {
 	this.Tick = function() 
 	{
 		var now = new Date().getTime();
-		if((now - instance.lastTick) >= 1000){
-			instance.lastTick = now;
-			instance._data.data.timestamp = now / 1000;
-			instance._data.stats.num_players = instance._data.players.length;
-			
-			//check if all lanes are empty
-			if(instance._data.data.lanes.length == 0 && instance._data.data.level == 0)
-			{
-				instance.InitRoom();
-			}
-			else
-			{
-				var next = true;
-				for(var z=0;z<instance._data.data.lanes.length;z++){
-					var l = instance._data.data.lanes[z];
-					for(var x=0;x<l.enemies.length;x++)
+		instance.lastTick = now;
+		instance._data.data.timestamp = now / 1000;
+		instance._data.stats.num_players = instance._data.players.length;
+		
+		//check if all lanes are empty
+		if(instance._data.data.lanes.length == 0 && instance._data.data.level == 0)
+		{
+			console.log("New room opened: " + instance._data.roomId);
+			instance.InitRoom();
+		}
+		else
+		{
+			var next = true;
+			for(var z=0;z<instance._data.data.lanes.length;z++){
+				var l = instance._data.data.lanes[z];
+				for(var x=0;x<l.enemies.length;x++)
+				{
+					if(l.enemies[x].hp > 0)
 					{
-						if(l.enemies[x].hp > 0)
-						{
-							next = false;
-						}
-						else if(l.enemies[x].gold_dropped == 0)
-						{
-							l.enemies[x].gold_dropped = l.enemies[x].gold;
-							instance.DropGoldInLane(z, l.enemies[x].gold);
-						}
+						next = false;
+					}
+					else if(l.enemies[x].gold_dropped == 0)
+					{
+						l.enemies[x].gold_dropped = l.enemies[x].gold;
+						instance.DropGoldInLane(z, l.enemies[x].gold);
 					}
 				}
-				
-				if(next){
-					instance.NextLevel();
-				}
-			}		
+			}
 			
-			instance.Flush();
-		}
+			if(next){
+				instance.NextLevel();
+			}
+		}		
+		
+		instance.Flush();
 	};
 
 	// Spawn functions
@@ -242,8 +239,7 @@ var Room = function(id) {
 	
 	this.DropGoldInLane = function(lane, gold){
 		async.each(instance._data.players, function(a, cb){
-			var p = new Player(a);
-			p.Load(function() {
+			M.GetPlayer(a, function(p) {
 				if(p._data.data.current_lane == lane){
 					p.AddGold(gold);
 				}
@@ -288,52 +284,42 @@ var Room = function(id) {
 			gold_dropped: 0
 		};
 		
-		switch(t){
+		switch(t) {
 			case 0:{
 				var t = T.tower;
-				
 				e.timer = t.respawn_time;
+						
 				e.hp = e.max_hp = T.Calc(t.hp, t.hp_multiplier, t.hp_exponent, instance._data.data.level);
 				e.dps = T.Calc(t.dps, t.dps_multiplier, t.dps_exponent, instance._data.data.level);
 				e.gold = T.Calc(t.gold, t.gold_multiplier, t.gold_exponent, instance._data.data.level);
-				
 				break;
 			}
 			case 1:{
 				var t = T.mob;
-				
 				e.hp = e.max_hp = T.Calc(t.hp, t.hp_multiplier, t.hp_exponent, instance._data.data.level);
 				e.dps = T.Calc(t.dps, t.dps_multiplier, t.dps_exponent, instance._data.data.level);
 				e.gold = T.Calc(t.gold, t.gold_multiplier, t.gold_exponent, instance._data.data.level);
-				
 				break;
 			}
 			case 2:{
 				var t = T.boss;
-				
 				e.hp = e.max_hp = T.Calc(t.hp, t.hp_multiplier, t.hp_exponent, instance._data.data.level);
 				e.dps = T.Calc(t.dps, t.dps_multiplier, t.dps_exponent, instance._data.data.level);
 				e.gold = T.Calc(t.gold, t.gold_multiplier, t.gold_exponent, instance._data.data.level);
-				e.timer = t.respawn_time;
-				
 				break;
 			}
 			case 3:{
 				var t = T.miniboss;
-				
 				e.hp = e.max_hp = T.Calc(t.hp, t.hp_multiplier, t.hp_exponent, instance._data.data.level);
 				e.dps = T.Calc(t.dps, t.dps_multiplier, t.dps_exponent, instance._data.data.level);
 				e.gold = T.Calc(t.gold, t.gold_multiplier, t.gold_exponent, instance._data.data.level);
-				
 				break;
 			}
 			case 4:{
 				var t = T.treasure_mob;
-				
 				e.hp = e.max_hp = T.Calc(t.hp, t.hp_multiplier, t.hp_exponent, instance._data.data.level);
 				e.dps = T.Calc(t.dps, t.dps_multiplier, t.dps_exponent, instance._data.data.level);
 				e.gold = T.Calc(t.gold, t.gold_multiplier, t.gold_exponent, instance._data.data.level);
-				
 				break;
 			}
 		}
@@ -374,39 +360,5 @@ var Room = function(id) {
 		}
 	};
 };
-Room.GetAll = function(cb){
-	var redis = new Redis();
 
-	redis.keys('room*', function(err, result){
-		if(!err)
-		{
-			var cmd = [];
-			for(var x=0;x<result.length;x++)
-			{
-				cmd[x] = ['get', result[x]];
-			}
-			
-			redis.pipeline(cmd).exec(function(e, res){
-				var out = {
-					timestamp: new Date().getTime(),
-					roomlist: []
-				};
-				for(var x=0;x<res.length;x++){
-					var rm = JSON.parse(res[x][1]);
-					
-					if(rm !== null && rm !== undefined){
-						out.roomlist[out.roomlist.length] = rm;
-					}
-				}
-				
-				cb(out);
-			});
-		}
-		else
-		{
-			console.log('Failed to get room list: '+err);
-		}
-	});
-};
-
-module.exports.Room = Room;
+module.exports = _room;

@@ -1960,6 +1960,7 @@ CSceneGame.prototype.FloorToMultipleOf = function( multipleOf, number )
 
 CSceneGame.prototype.CalcExponentialTuningValve = function( level, coefficient, base )
 {
+	debugger;
 	return ( coefficient * ( Math.pow( base, level ) ) );
 }
 

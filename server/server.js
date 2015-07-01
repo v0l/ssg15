@@ -2,9 +2,8 @@ var fs = require('fs');
 var http = require('http');
 
 var Redis = require('ioredis');
-var ByteBuffer = require("bytebuffer");
+var UUID = require('uuid');
 var Protobuf = require('protocol-buffers');
-var UUID = require("uuid");
 var express = require("express");
 var exphbs = require('express-handlebars');
 var WebSocketServer = require("ws").Server;
@@ -12,15 +11,15 @@ var passport = require('passport');
 var session = require('express-session');
 var RedisStore = require('connect-redis')(session);
 
-var RoomManager = require('./roommanager');
-var Player = require('./player').Player;
-var Room = require('./room').Room;
+var M = require('./manager');
 var ssg15 = require('./globals');
 var hbHelpers = require('./views/helpers');
 var expressGlobals = require('./express.global');
 var comm = Protobuf(fs.readFileSync(ssg15.Config.PublicDir+'cfg/messages.proto'));
 var app = express();
 var SteamStrategy = require('passport-steam').Strategy;
+
+global.redis = new Redis();
 
 passport.serializeUser(function(user, done) {
   done(null, user);
@@ -60,11 +59,14 @@ app.get('/',ensureAuthenticated, function(req, res) {
 });
 
 app.get('/TowerAttack', ensureAuthenticated, function(req, res) {
-	var pl = new Player(req.user.steamId);
-	pl.Load(function() {
-		RoomManager.GetRoom(pl._data.roomId, function(rm){
-			res.render('game', { user: req.user, room: rm, player: pl });
-		});
+	M.GetPlayer(req.user.steamId, function (pl) {
+		if(pl !== null){
+			M.GetRoom(pl._data.roomId, function(rm){
+				res.render('game', { user: req.user, room: rm, player: pl });
+			});
+		}else{
+			res.redirect('/lobby');
+		}
 	});
 });
 
@@ -73,17 +75,14 @@ app.get('/login', function(req, res) {
 });
 
 app.get('/lobby', ensureAuthenticated, function(req, res) {
-	var pl = new Player(req.user.id);
-	pl.Load(function() {
-		RoomManager.GetRoom(pl._data.roomId,function(rm){
-			if(rm !== undefined){
-				rm.Load(function() {
-					res.render('lobby', { user: req.user, room: rm, player: pl });
-				});
-			}else{
-				res.render('lobby', { user: req.user, room: null, player: pl });
-			}
-		});
+	M.GetPlayer(req.user.steamId, function(pl) {
+		if(pl !== undefined){
+			M.GetRoom(pl._data.roomId,function(rm){
+				res.render('lobby', { user: req.user, room: rm, player: pl });
+			});
+		}else{
+			res.render('lobby', { user: req.user, room: null, player: null });
+		}
 	});
 });
 
@@ -93,8 +92,7 @@ app.get('/auth/steam', passport.authenticate('steam', { failureRedirect: '/login
   
 app.get('/auth/steam/return', passport.authenticate('steam', { failureRedirect: '/login#failed' }), function(req, res) {
 	//check player exists in redis
-	var pl = new Player(req.user.id);
-	pl.Load(function() {
+	M.GetPlayer(req.user.id, function(pl) {
 		pl._data.displayName = req.user.displayName;
 		pl._data.steamId = req.user.id;
 		pl.Flush();
@@ -118,14 +116,13 @@ app.get('/logout', function(req, res) {
 });
 
 app.get('/data/rooms', function(req, res){
-	Room.GetAll(function(data) {
+	M.GetAllRooms(function(data) {
 		res.json(data);	
 	});
 });
 
 app.get('/data/joinroom/:id',ensureAuthenticated, function(req, res) {
-	var pl = new Player(req.user.id);
-	pl.Load(function() {
+	M.GetPlayer(req.user.id, function(pl) {
 		pl.JoinRoom(req.params.id, function(r) {
 			if(!r.ok)
 			{
@@ -137,7 +134,7 @@ app.get('/data/joinroom/:id',ensureAuthenticated, function(req, res) {
 });
 
 app.get('/data/:room/players', function(req, res){
-	RoomManager.GetRoom(req.params.room, function(rm) {
+	M.GetRoom(req.params.room, function(rm) {
 		rm.GetPlayerListFull(function(data){
 			res.json(data);
 		});
@@ -155,7 +152,7 @@ var server = app.listen(8080, function () {
 
 	console.log('ssg15'+(ssg15.Config.Env == 'dev' ? '-dev' : '')+' app listening at http://%s:%s', host, port);
 
-	RoomManager.StartTicker();
+	M.StartTicker();
 });
 
 var ws = new WebSocketServer({
@@ -187,8 +184,7 @@ ws.on('connection', function(ws) {
 	ws.on('message', function (data, flags) {
 		if(flags.binary)
 		{
-			var pl = new Player(ws.session.id);
-			pl.Load(function() {
+			M.GetPlayer(ws.session.id, function(pl) {
 				var msg = comm.CTowerAttack_Request.decode(data);
 
 				pl.HandleMessage(msg, function(rsp){

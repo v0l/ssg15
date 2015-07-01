@@ -1,15 +1,13 @@
 var fs = require('fs');
-var Redis = require('ioredis');
 var Protobuf = require('protocol-buffers');
 var async = require('async');
 
 var T = require('./tuningdata');
-var RoomManager = require('./roommanager');
+var M = require('./manager');
 var ssg15 = require('./globals');
 var comm = Protobuf(fs.readFileSync(ssg15.Config.PublicDir+'cfg/messages.proto'));
 
-var Player = function (id) {
-	this._redis = new Redis();
+var _player = function (id) {
 	this.id = id;
 	this._redisKey = 'player:'+id;
 
@@ -49,7 +47,7 @@ var Player = function (id) {
 		
 	this.Flush = function()
 	{
-		instance._redis.set(instance._redisKey, JSON.stringify(instance._data));
+		global.redis.set(instance._redisKey, JSON.stringify(instance._data));
 	};
 	
 	this.FlushPipeline = function(p)
@@ -77,11 +75,10 @@ var Player = function (id) {
 				instance._data.data.hp = instance._data.tech.max_hp = instance._data.tech.max_hp * (u_t.multiplier * (1 + u.level));
 			}
 		}
-		
 	}
 	
 	this.Load = function(cb){
-		instance._redis.get(instance._redisKey, function(err, res)
+		global.redis.get(instance._redisKey, function(err, res)
 		{
 			if(!err)
 			{
@@ -106,7 +103,7 @@ var Player = function (id) {
 	{
 		if(instance._data.roomId == 0)
 		{
-			RoomManager.GetRoom(room,function(rm){
+			M.GetRoom(room,function(rm){
 				if(rm._data.players.length < ssg15.Config.MaxPlayers)
 				{
 					//yay! - join le room
@@ -128,27 +125,38 @@ var Player = function (id) {
 	};
 	
 	this.BuyUpgrade = function(id){
-		//check if upgrade exists
+		var up = T.upgrades[id];
+		
+		//check if upgrade exists in list
 		var hadUpgrade = false;
 		for(var x=0;x<instance._data.tech.upgrades.length;x++){
 			var u = instance._data.tech.upgrades[x];
 
-			if(u.upgrade == id){
-				var up = T.upgrades[id];
-				u.level++;
-				u.cost_for_next_level = T.Calc(u.level, up.cost, up.cost_exponential_base);
+			if(u.upgrade === id){
+				//check if we have enough money
+				var next_cost = T.CalcCost(up.cost, up.cost_exponential_base, u.level);
+				if(next_cost <= instance._data.data.gold){
+					instance._data.data.gold -= next_cost;
+					u.level++;
+				}
+
 				hadUpgrade = true;
 				break;
 			}
 		}
 		
 		if(!hadUpgrade){
-			var u = T.upgrades[id];
-			instance._data.tech.upgrades[instance._data.tech.upgrades.length] = {
+			var upg = {
 				upgrade: id,
-				level: 1,
-				cost_for_next_level: T.Calc(1, u.cost, u.cost_exponential_base)
+				level: 0
 			};
+			var next_cost = T.CalcCost(up.cost, up.cost_exponential_base, upg.level);
+			if(next_cost <= instance._data.data.gold){
+				instance._data.data.gold -= next_cost;
+				upg.level++;
+			}
+			
+			instance._data.tech.upgrades[instance._data.tech.upgrades.length] = upg;
 		}
 		
 		instance.UpdateStats();
@@ -159,7 +167,7 @@ var Player = function (id) {
 		switch(msg.type){
 			case 0:{
 				//get game data
-				RoomManager.GetRoom(instance._data.roomId, function (rm) {
+				M.GetRoom(instance._data.roomId, function (rm) {
 					var rsp_d = {
 						id: msg.id,
 						type: msg.type,
@@ -186,7 +194,7 @@ var Player = function (id) {
 			}
 			case 1:{
 				//get player names
-				RoomManager.GetRoom(instance._data.roomId,function(rm){
+				M.GetRoom(instance._data.roomId,function(rm){
 					rm.GetPlayerListFull(function(list){
 						var rsp_d = {
 							id: msg.id,
@@ -231,7 +239,7 @@ var Player = function (id) {
 							break;
 						}
 						case comm.ETowerAttackAbility.k_ETowerAttackAbility_Attack: {
-							RoomManager.GetRoom(instance._data.roomId,function(rm){
+							M.GetRoom(instance._data.roomId,function(rm){
 								rm.ProcessAbility(instance, ab);
 							});
 							break;
@@ -312,4 +320,4 @@ var Player = function (id) {
 	};
 };
 
-module.exports.Player = Player;
+module.exports = _player;
